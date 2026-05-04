@@ -4,24 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kara AI</title>
+  <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="topbar">
-    <div id="time">00:00</div>
+    <div id="time"></div>
     <div>KARA SYSTEM ONLINE</div>
   </div>
 
-  <div class="dashboard">
-    <div class="panel">Weather: --</div>
-    <div class="panel">Tasks: 0 Pending</div>
-  </div>
-
-  <div class="main">
+  <main class="main">
     <div class="orb" id="orb"></div>
     <div id="status">IDLE</div>
     <div id="log"></div>
-  </div>
+  </main>
 
   <div class="command-box">
     <input id="userInput" placeholder="Issue command..." />
@@ -29,6 +25,8 @@
     <button id="micBtn">🎤</button>
   </div>
 
+  <script src="memory.js"></script>
   <script src="app.js"></script>
+  <script src="voice.js"></script>
 </body>
 </html>
