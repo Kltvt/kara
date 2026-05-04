@@ -2,43 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Kara</title>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kara AI</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-  <div class="app">
-
-    <aside class="sidebar">
-      <h2>Kara</h2>
-      <button id="newChat">+ New Chat</button>
-      <button id="clearChat">🗑 Clear Chat</button>
-      <div id="chatList"></div>
-      <div id="chatHistory"></div>
-    </aside>
-
-    <main class="main">
-      <div id="chatContainer" class="chat-container"></div>
-
-      <div class="input-area">
-        <button id="uploadBtn">📎</button>
-        <button id="voiceBtn">🎤</button>
-
-        <input
-          type="text"
-          id="userInput"
-          placeholder="Message Kara..."
-        />
-
-        <button id="sendBtn">➤</button>
-      </div>        
-    </main>
-
+  <div class="topbar">
+    <div id="time">00:00</div>
+    <div>KARA SYSTEM ONLINE</div>
   </div>
-<script src="memory.js?v=2"></script>
-<script src="app.js?v=2"></script>
-<script src="voice.js?v=2"></script>
+
+  <div class="dashboard">
+    <div class="panel">Weather: --</div>
+    <div class="panel">Tasks: 0 Pending</div>
+  </div>
+
+  <div class="main">
+    <div class="orb" id="orb"></div>
+    <div id="status">IDLE</div>
+    <div id="log"></div>
+  </div>
+
+  <div class="command-box">
+    <input id="userInput" placeholder="Issue command..." />
+    <button id="sendBtn">Run</button>
+    <button id="micBtn">🎤</button>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
