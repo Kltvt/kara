@@ -102,3 +102,19 @@ button {
 .message h3 {
   margin: 10px 0;
 }
+
+#chatList {
+  margin-top: 15px;
+}
+
+.chat-item {
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  background: rgba(255,255,255,0.05);
+}
+
+.chat-item:hover {
+  background: rgba(255,255,255,0.1);
+}
