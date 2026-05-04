@@ -1,5 +1,3 @@
-console.log("Kara initialized");
-
 const input = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
 const chatContainer = document.getElementById("chatContainer");
@@ -19,10 +17,21 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
+  // show user message
   addMessage("user", text);
-  history.push({ role: "user", content: text });
+  history.push({
+    role: "user",
+    content: text
+  });
 
   input.value = "";
+
+  // loading message
+  const loading = document.createElement("div");
+  loading.className = "message assistant";
+  loading.textContent = "Kara is thinking...";
+  chatContainer.appendChild(loading);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
 
   try {
     const res = await fetch("https://budy-ai.klt770586.workers.dev", {
@@ -35,34 +44,48 @@ async function sendMessage() {
         messages: [
           {
             role: "system",
-            content: "You are Kara, a modern personal AI assistant."
+            content:
+              "You are Kara, a modern all-in-one personal assistant. Be friendly, smart, concise, and helpful."
           },
           ...history
         ]
       })
     });
 
- const data = await res.json();
-alert(JSON.stringify(data, null, 2));
-console.log(data);
+    const data = await res.json();
+    console.log(data);
 
-if (!data.choices || !data.choices.length) {
-  addMessage("assistant", "Kara backend error.");
-  return;
-}
+    // remove loading
+    loading.remove();
 
-const reply = data.choices[0].message.content;   
+    const reply =
+      data?.choices?.[0]?.message?.content ||
+      "Kara could not generate a response.";
+
     addMessage("assistant", reply);
-    history.push({ role: "assistant", content: reply });
 
-  } catch (err) {
-    addMessage("assistant", "Error connecting to Kara.");
-    console.error(err);
+    history.push({
+      role: "assistant",
+      content: reply
+    });
+
+  } catch (error) {
+    loading.remove();
+    console.error(error);
+
+    addMessage(
+      "assistant",
+      "Error: Could not connect to Kara backend."
+    );
   }
 }
 
+// button click
 sendBtn.addEventListener("click", sendMessage);
 
+// enter key
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") sendMessage();
+  if (e.key === "Enter") {
+    sendMessage();
+  }
 });
