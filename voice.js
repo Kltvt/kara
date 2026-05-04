@@ -4,38 +4,31 @@ let voices = [];
 
 function loadVoices() {
   voices = window.speechSynthesis.getVoices();
-  console.log("Loaded voices:", voices);
+  console.log("Voices loaded:", voices);
 }
 
 loadVoices();
 window.speechSynthesis.onvoiceschanged = loadVoices;
 
 function speak(text) {
-  if (!("speechSynthesis" in window)) {
-    console.log("Speech not supported");
-    return;
-  }
+  if (!window.speechSynthesis) return;
 
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
 
-  let selectedVoice =
+  const selectedVoice =
     voices.find(v => v.name === "Google UK English Female") ||
     voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
-    voices.find(v => v.name === "Google US English");
+    voices.find(v => v.lang.startsWith("en"));
 
   if (selectedVoice) {
     utterance.voice = selectedVoice;
-    console.log("Using voice:", selectedVoice.name);
   }
 
   utterance.rate = 1;
   utterance.pitch = 1;
   utterance.volume = 1;
-
-  utterance.onstart = () => console.log("Speaking...");
-  utterance.onend = () => console.log("Done speaking");
 
   window.speechSynthesis.speak(utterance);
 }
@@ -51,25 +44,29 @@ if (SpeechRecognition) {
   recognition.continuous = false;
   recognition.interimResults = false;
 
-  recognition.onstart = () => {
+  recognition.onstart = function () {
     setState("LISTENING", "#ff4d6d");
   };
 
-  recognition.onresult = (event) => {
+  recognition.onresult = function (event) {
     const text = event.results[0][0].transcript;
     input.value = text;
     sendMessage();
   };
 
-  recognition.onend = () => {
-    setState("IDLE", "#00e5ff");
+  recognition.onend = function () {
+    setState("READY", "#00e5ff");
   };
 }
 
-micBtn.addEventListener("click", () => {
-  if (recognition) {
-    recognition.start();
-  } else {
-    speak("Voice recognition not supported.");
-  }
-});
+if (micBtn) {
+  micBtn.addEventListener("click", function () {
+    if (recognition) {
+      recognition.start();
+    } else {
+      speak("Speech recognition is not supported in this browser.");
+    }
+  });
+}
+
+console.log("voice.js loaded");
