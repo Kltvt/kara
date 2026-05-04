@@ -85,14 +85,12 @@ function runCommand(command) {
   }
 
   if (cmd === "open youtube") {
-    window.open("https://youtube.com", "_blank");
-    addLog("SYSTEM", "Opening YouTube...");
+    location.href = "https://www.youtube.com";
     return true;
   }
 
   if (cmd === "open google") {
-    window.open("https://google.com", "_blank");
-    addLog("SYSTEM", "Opening Google...");
+    location.href = "https://www.google.com";
     return true;
   }
 
@@ -105,7 +103,6 @@ function runCommand(command) {
 
   return false;
 }
-
 // ===== SEND =====
 async function sendMessage() {
   const message = input.value.trim();
