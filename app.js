@@ -8,7 +8,12 @@ const history = [];
 function addMessage(role, text) {
   const msg = document.createElement("div");
   msg.className = "message " + role;
-  msg.textContent = text;
+
+  if (role === "assistant") {
+    msg.innerHTML = marked.parse(text);
+  } else {
+    msg.textContent = text;
+  }
 
   chatContainer.appendChild(msg);
   chatContainer.scrollTop = chatContainer.scrollHeight;
