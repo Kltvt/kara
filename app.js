@@ -1,4 +1,5 @@
 console.log("Kara initialized");
+
 const input = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
 const chatContainer = document.getElementById("chatContainer");
