@@ -94,21 +94,18 @@ function runCommand(command) {
   }
 
   if (cmd.startsWith("open ")) {
-    let site = cmd.replace("open ", "").trim();
+    const site = cmd.replace("open ", "").trim();
 
-    site = site.replace(/\s+/g, "");
+    if (!site) return true;
 
-    if (!site.startsWith("http")) {
-      site = "https://www." + site + ".com";
-    }
+    const url = `https://${site}.com`;
 
-    location.href = site;
+    window.location.assign(url);
     return true;
   }
 
   return false;
 }
-
 // ===== SEND =====
 async function sendMessage() {
   const message = input.value.trim();
