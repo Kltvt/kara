@@ -105,3 +105,8 @@ input.addEventListener("keydown", (e) => {
 
 // Load saved messages
 loadChat();
+
+document.getElementById("clearChat").addEventListener("click", () => {
+  localStorage.removeItem("kara_history");
+  location.reload();
+});
