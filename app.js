@@ -30,10 +30,12 @@ function bootSequence() {
 // ===== CLOCK =====
 function updateTime() {
   const timeEl = document.getElementById("time");
+
   if (timeEl) {
     timeEl.textContent = new Date().toLocaleTimeString();
   }
 }
+
 setInterval(updateTime, 1000);
 updateTime();
 
@@ -84,16 +86,6 @@ function runCommand(command) {
     return true;
   }
 
-  if (cmd === "open youtube") {
-    location.href = "https://www.youtube.com";
-    return true;
-  }
-
-  if (cmd === "open google") {
-    location.href = "https://www.google.com";
-    return true;
-  }
-
   if (cmd === "shutdown") {
     addLog("SYSTEM", "Kara shutting down...");
     setState("OFFLINE", "#ff4d6d");
@@ -101,8 +93,22 @@ function runCommand(command) {
     return true;
   }
 
+  if (cmd.startsWith("open ")) {
+    let site = cmd.replace("open ", "").trim();
+
+    site = site.replace(/\s+/g, "");
+
+    if (!site.startsWith("http")) {
+      site = "https://www." + site + ".com";
+    }
+
+    location.href = site;
+    return true;
+  }
+
   return false;
 }
+
 // ===== SEND =====
 async function sendMessage() {
   const message = input.value.trim();
@@ -153,7 +159,8 @@ async function sendMessage() {
       data &&
       data.choices &&
       data.choices[0] &&
-      data.choices[0].message
+      data.choices[0].message &&
+      data.choices[0].message.content
     ) {
       reply = data.choices[0].message.content;
     }
@@ -174,7 +181,6 @@ async function sendMessage() {
     }
 
     setState("READY", "#00e5ff");
-
   } catch (error) {
     console.error(error);
     addLog("SYSTEM", "Connection failed");
