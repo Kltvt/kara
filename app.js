@@ -89,3 +89,4 @@ input.addEventListener("keydown", (e) => {
     sendMessage();
   }
 });
+loadChat();
