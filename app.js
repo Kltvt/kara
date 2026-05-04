@@ -19,12 +19,11 @@ function addMessage(role, text) {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// Main send function
+// Send message
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // user message
   addMessage("user", text);
 
   history.push({
@@ -32,10 +31,10 @@ async function sendMessage() {
     content: text
   });
 
-  saveChat();
+  saveCurrentChat();
   input.value = "";
 
-  // loading message
+  // loading state
   const loading = document.createElement("div");
   loading.className = "message assistant";
   loading.textContent = "Kara is thinking...";
@@ -49,7 +48,7 @@ async function sendMessage() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "z-ai/glm-4.5-air:free",
+        model: "nvidia/nemotron-3-super-120b-a12b:free",
         messages: [
           {
             role: "system",
@@ -62,18 +61,13 @@ async function sendMessage() {
     });
 
     const data = await res.json();
-
     loading.remove();
 
     let reply = "Kara could not generate a response.";
 
-    // backend/provider error
     if (data?.error?.message) {
       reply = "⚠️ " + data.error.message;
-    }
-
-    // success
-    else if (data?.choices?.[0]?.message?.content) {
+    } else if (data?.choices?.[0]?.message?.content) {
       reply = data.choices[0].message.content;
     }
 
@@ -85,7 +79,7 @@ async function sendMessage() {
       content: reply
     });
 
-    saveChat();
+    saveCurrentChat();
 
   } catch (error) {
     loading.remove();
@@ -98,20 +92,23 @@ async function sendMessage() {
   }
 }
 
-// Button click
+// send button
 sendBtn.addEventListener("click", sendMessage);
 
-// Enter key
+// enter key
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     sendMessage();
   }
 });
 
-// Load saved messages
-loadChat();
+// New chat
+document.getElementById("newChat").addEventListener("click", () => {
+  createNewChat();
+});
 
+// Clear all chats
 document.getElementById("clearChat").addEventListener("click", () => {
-  localStorage.removeItem("kara_history");
+  localStorage.removeItem("kara_chats");
   location.reload();
 });
