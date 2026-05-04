@@ -68,3 +68,11 @@ input {
     color: white;
   }
 }
+
+button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
