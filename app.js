@@ -4,6 +4,7 @@ const chatContainer = document.getElementById("chatContainer");
 
 const history = [];
 
+// add message to UI
 function addMessage(role, text) {
   const msg = document.createElement("div");
   msg.className = "message " + role;
@@ -13,20 +14,24 @@ function addMessage(role, text) {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+// send message
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // show user message
+  // user message
   addMessage("user", text);
+
   history.push({
     role: "user",
     content: text
   });
 
+  saveChat();
+
   input.value = "";
 
-  // loading message
+  // loading
   const loading = document.createElement("div");
   loading.className = "message assistant";
   loading.textContent = "Kara is thinking...";
@@ -40,7 +45,7 @@ async function sendMessage() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "nvidia/nemotron-nano-9b-v2:free",
+        model: "deepseek/deepseek-chat-v3-0324:free",
         messages: [
           {
             role: "system",
@@ -53,14 +58,16 @@ async function sendMessage() {
     });
 
     const data = await res.json();
-    console.log(data);
 
-    // remove loading
     loading.remove();
 
-    const reply =
-      data?.choices?.[0]?.message?.content ||
-      "Kara could not generate a response.";
+    let reply = "Kara could not generate a response.";
+
+    if (data?.error?.message) {
+      reply = "⚠️ " + data.error.message;
+    } else if (data?.choices?.[0]?.message?.content) {
+      reply = data.choices[0].message.content;
+    }
 
     addMessage("assistant", reply);
 
@@ -68,6 +75,8 @@ async function sendMessage() {
       role: "assistant",
       content: reply
     });
+
+    saveChat();
 
   } catch (error) {
     loading.remove();
@@ -80,7 +89,7 @@ async function sendMessage() {
   }
 }
 
-// button click
+// button send
 sendBtn.addEventListener("click", sendMessage);
 
 // enter key
@@ -89,4 +98,6 @@ input.addEventListener("keydown", (e) => {
     sendMessage();
   }
 });
+
+// load saved chat on startup
 loadChat();
