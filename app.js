@@ -73,6 +73,7 @@ async function sendMessage() {
     }
 
     addMessage("assistant", reply);
+    speak(reply);
 
     history.push({
       role: "assistant",
