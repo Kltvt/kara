@@ -42,8 +42,15 @@ async function sendMessage() {
     });
 
     const data = await res.json();
-    const reply = data.choices[0].message.content;
+console.log(data);
 
+if (!data.choices || !data.choices[0]) {
+  addMessage("assistant", "Kara backend error.");
+  return;
+}
+
+const reply = data.choices[0].message.content;
+    
     addMessage("assistant", reply);
     history.push({ role: "assistant", content: reply });
 
