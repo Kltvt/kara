@@ -12,18 +12,6 @@ body {
   padding: 20px 40px;
 }
 
-.dashboard {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-}
-
-.panel {
-  padding: 12px 20px;
-  border: 1px solid cyan;
-  border-radius: 12px;
-}
-
 .main {
   display: flex;
   flex-direction: column;
@@ -35,36 +23,12 @@ body {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  border: 3px solid cyan;
-  box-shadow: 0 0 30px cyan, inset 0 0 30px cyan;
+  border: 3px solid #00e5ff;
+  box-shadow: 0 0 30px #00e5ff, inset 0 0 30px #00e5ff;
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
   0%,100% { transform: scale(1); }
   50% { transform: scale(1.08); }
-}
-
-#status {
-  margin-top: 20px;
-  font-size: 24px;
-}
-
-#log {
-  margin-top: 20px;
-  min-height: 100px;
-}
-
-.command-box {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-}
-
-input {
-  width: 400px;
-  padding: 14px;
 }
