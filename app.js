@@ -11,13 +11,44 @@ const orb = document.getElementById("orb");
 
 const history = [];
 
+// ===== BOOT SEQUENCE =====
+function bootSequence() {
+  const bootMessages = [
+    "Initializing Kara...",
+    "Loading voice systems...",
+    "Memory module online...",
+    "Neural systems active...",
+    "Kara ready."
+  ];
+
+  let index = 0;
+
+  function nextBoot() {
+    if (index < bootMessages.length) {
+      addLog("SYSTEM", bootMessages[index]);
+      index++;
+      setTimeout(nextBoot, 1000);
+    } else {
+      setState("READY", "#00e5ff");
+
+      if (typeof speak === "function") {
+        speak("Kara systems online.");
+      }
+    }
+  }
+
+  nextBoot();
+}
+
 // ===== CLOCK =====
 function updateTime() {
   const timeEl = document.getElementById("time");
+
   if (timeEl) {
     timeEl.textContent = new Date().toLocaleTimeString();
   }
 }
+
 setInterval(updateTime, 1000);
 updateTime();
 
@@ -46,7 +77,7 @@ function clearChat() {
   addLog("SYSTEM", "Chat cleared.");
 }
 
-// ===== SEND =====
+// ===== SEND MESSAGE =====
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
@@ -133,6 +164,10 @@ input.addEventListener("keydown", function (e) {
   if (e.key === "Enter") {
     sendMessage();
   }
+});
+
+window.addEventListener("load", function () {
+  bootSequence();
 });
 
 console.log("app.js loaded");
