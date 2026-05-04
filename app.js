@@ -65,6 +65,7 @@ async function sendMessage() {
     }
 
     addLog("KARA", reply);
+    speak(reply);
     setState("READY", "#00e5ff");
   } catch (err) {
     console.error(err);
