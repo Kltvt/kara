@@ -1,27 +1,41 @@
-console.log('Voice system loaded');
 const micBtn = document.getElementById("micBtn");
 
+let voices = [];
+
+function loadVoices() {
+  voices = window.speechSynthesis.getVoices();
+  console.log("Loaded voices:", voices);
+}
+
+loadVoices();
+window.speechSynthesis.onvoiceschanged = loadVoices;
+
 function speak(text) {
-  if (!("speechSynthesis" in window)) return;
+  if (!("speechSynthesis" in window)) {
+    console.log("Speech not supported");
+    return;
+  }
 
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
 
-  const voices = window.speechSynthesis.getVoices();
+  let selectedVoice =
+    voices.find(v => v.name === "Google UK English Female") ||
+    voices.find(v => v.name === "Microsoft Zira - English (United States)") ||
+    voices.find(v => v.name === "Google US English");
 
-  const femaleVoice =
-    voices.find(v => v.name.includes("Google UK English Female")) ||
-    voices.find(v => v.name.includes("Microsoft Zira")) ||
-    voices.find(v => v.name.includes("Google US English"));
-
-  if (femaleVoice) {
-    utterance.voice = femaleVoice;
+  if (selectedVoice) {
+    utterance.voice = selectedVoice;
+    console.log("Using voice:", selectedVoice.name);
   }
 
   utterance.rate = 1;
   utterance.pitch = 1;
   utterance.volume = 1;
+
+  utterance.onstart = () => console.log("Speaking...");
+  utterance.onend = () => console.log("Done speaking");
 
   window.speechSynthesis.speak(utterance);
 }
@@ -29,7 +43,7 @@ function speak(text) {
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
-let recognition;
+let recognition = null;
 
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
@@ -53,5 +67,9 @@ if (SpeechRecognition) {
 }
 
 micBtn.addEventListener("click", () => {
-  if (recognition) recognition.start();
+  if (recognition) {
+    recognition.start();
+  } else {
+    speak("Voice recognition not supported.");
+  }
 });
