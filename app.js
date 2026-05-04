@@ -42,16 +42,16 @@ async function sendMessage() {
       })
     });
 
-    const data = await res.json();
+ const data = await res.json();
+alert(JSON.stringify(data, null, 2));
 console.log(data);
 
-if (!data.choices || !data.choices[0]) {
+if (!data.choices || !data.choices.length) {
   addMessage("assistant", "Kara backend error.");
   return;
 }
 
-const reply = data.choices[0].message.content;
-    
+const reply = data.choices[0].message.content;   
     addMessage("assistant", reply);
     history.push({ role: "assistant", content: reply });
 
