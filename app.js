@@ -4,7 +4,7 @@ const chatContainer = document.getElementById("chatContainer");
 
 const history = [];
 
-// add message to UI
+// Render messages
 function addMessage(role, text) {
   const msg = document.createElement("div");
   msg.className = "message " + role;
@@ -14,7 +14,7 @@ function addMessage(role, text) {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// send message
+// Main send function
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
@@ -28,10 +28,9 @@ async function sendMessage() {
   });
 
   saveChat();
-
   input.value = "";
 
-  // loading
+  // loading message
   const loading = document.createElement("div");
   loading.className = "message assistant";
   loading.textContent = "Kara is thinking...";
@@ -50,7 +49,7 @@ async function sendMessage() {
           {
             role: "system",
             content:
-              "You are Kara, a modern all-in-one personal assistant. Be friendly, smart, concise, and helpful."
+              "You are Kara, a modern all-in-one personal assistant. Be smart, friendly, concise, and helpful."
           },
           ...history
         ]
@@ -63,9 +62,13 @@ async function sendMessage() {
 
     let reply = "Kara could not generate a response.";
 
+    // backend/provider error
     if (data?.error?.message) {
       reply = "⚠️ " + data.error.message;
-    } else if (data?.choices?.[0]?.message?.content) {
+    }
+
+    // success
+    else if (data?.choices?.[0]?.message?.content) {
       reply = data.choices[0].message.content;
     }
 
@@ -89,15 +92,15 @@ async function sendMessage() {
   }
 }
 
-// button send
+// Button click
 sendBtn.addEventListener("click", sendMessage);
 
-// enter key
+// Enter key
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     sendMessage();
   }
 });
 
-// load saved chat on startup
+// Load saved messages
 loadChat();
