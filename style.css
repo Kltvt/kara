@@ -43,3 +43,28 @@ input {
   flex: 1;
   padding: 12px;
 }
+.message {
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  max-width: 75%;
+  line-height: 1.5;
+}
+
+.user {
+  background: #007aff;
+  color: white;
+  margin-left: auto;
+}
+
+.assistant {
+  background: #f2f2f7;
+  color: black;
+}
+
+@media (prefers-color-scheme: dark) {
+  .assistant {
+    background: #2c2c2e;
+    color: white;
+  }
+}
