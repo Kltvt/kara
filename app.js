@@ -15,6 +15,7 @@ function updateTime() {
     timeEl.textContent = new Date().toLocaleTimeString();
   }
 }
+
 setInterval(updateTime, 1000);
 updateTime();
 
@@ -34,6 +35,7 @@ async function sendMessage() {
   if (!message) return;
 
   addLog("YOU", message);
+  rememberChat("user", message);
 
   history.push({
     role: "user",
@@ -86,6 +88,7 @@ async function sendMessage() {
     });
 
     addLog("KARA", reply);
+    rememberChat("assistant", reply);
 
     console.log("Speaking reply:", reply);
 
