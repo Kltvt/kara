@@ -3,6 +3,21 @@ const voiceBtn = document.getElementById("voiceBtn");
 let recognition;
 let listening = false;
 
+// text to speech
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+
+  window.speechSynthesis.speak(utterance);
+}
+
+// speech recognition
 if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -24,6 +39,7 @@ if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
   };
 }
 
+// mic button
 voiceBtn.addEventListener("click", () => {
   if (!recognition) {
     alert("Speech recognition not supported");
