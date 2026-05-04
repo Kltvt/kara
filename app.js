@@ -1,114 +1,47 @@
-const input = document.getElementById("userInput");
-const sendBtn = document.getElementById("sendBtn");
-const chatContainer = document.getElementById("chatContainer");
+const input = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+const micBtn = document.getElementById('micBtn');
+const statusEl = document.getElementById('status');
+const orb = document.getElementById('orb');
+const log = document.getElementById('log');
 
-const history = [];
+function updateTime() {
+  document.getElementById('time').textContent = new Date().toLocaleTimeString();
+}
+setInterval(updateTime, 1000);
+updateTime();
 
-// Render messages
-function addMessage(role, text) {
-  const msg = document.createElement("div");
-  msg.className = "message " + role;
-
-  if (role === "assistant") {
-    msg.innerHTML = marked.parse(text);
-  } else {
-    msg.textContent = text;
-  }
-
-  chatContainer.appendChild(msg);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+function setState(state, color) {
+  statusEl.textContent = state;
+  orb.style.borderColor = color;
+  orb.style.boxShadow = `0 0 30px ${color}, inset 0 0 30px ${color}`;
 }
 
-// Send message
+function addLog(text) {
+  log.innerHTML += `<div>> ${text}</div>`;
+}
+
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  addMessage("user", text);
+  addLog(text);
+  setState('PROCESSING', '#ffd166');
 
-  history.push({
-    role: "user",
-    content: text
-  });
+  setTimeout(() => {
+    setState('READY', '#00e5ff');
+  }, 1500);
 
-  saveCurrentChat();
-  input.value = "";
-
-  // loading state
-  const loading = document.createElement("div");
-  loading.className = "message assistant";
-  loading.textContent = "Kara is thinking...";
-  chatContainer.appendChild(loading);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
-
-  try {
-    const res = await fetch("https://budy-ai.klt770586.workers.dev", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "nvidia/nemotron-3-super-120b-a12b:free",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are Kara, a modern all-in-one personal assistant. Be smart, friendly, concise, and helpful."
-          },
-          ...history
-        ]
-      })
-    });
-
-    const data = await res.json();
-    loading.remove();
-
-    let reply = "Kara could not generate a response.";
-
-    if (data?.error?.message) {
-      reply = "⚠️ " + data.error.message;
-    } else if (data?.choices?.[0]?.message?.content) {
-      reply = data.choices[0].message.content;
-    }
-
-    addMessage("assistant", reply);
-    speak(reply);
-
-    history.push({
-      role: "assistant",
-      content: reply
-    });
-
-    saveCurrentChat();
-
-  } catch (error) {
-    loading.remove();
-    console.error(error);
-
-    addMessage(
-      "assistant",
-      "Error: Could not connect to Kara backend."
-    );
-  }
+  input.value = '';
 }
 
-// send button
-sendBtn.addEventListener("click", sendMessage);
+sendBtn.onclick = sendMessage;
 
-// enter key
-input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    sendMessage();
-  }
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMessage();
 });
 
-// New chat
-document.getElementById("newChat").addEventListener("click", () => {
-  createNewChat();
-});
-
-// Clear all chats
-document.getElementById("clearChat").addEventListener("click", () => {
-  localStorage.removeItem("kara_chats");
-  location.reload();
-});
+micBtn.onclick = () => {
+  setState('LISTENING', '#ff4d6d');
+  setTimeout(() => setState('IDLE', '#00e5ff'), 2000);
+};
