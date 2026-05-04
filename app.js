@@ -3,7 +3,6 @@ const MODEL = "nvidia/nemotron-3-super-120b-a12b:free";
 
 const input = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
-const micBtn = document.getElementById("micBtn");
 const clearBtn = document.getElementById("clearBtn");
 
 const log = document.getElementById("log");
@@ -12,7 +11,7 @@ const orb = document.getElementById("orb");
 
 const history = [];
 
-// ===== TIME =====
+// ===== CLOCK =====
 function updateTime() {
   const timeEl = document.getElementById("time");
   if (timeEl) {
@@ -22,14 +21,14 @@ function updateTime() {
 setInterval(updateTime, 1000);
 updateTime();
 
-// ===== UI STATE =====
+// ===== STATUS =====
 function setState(text, color) {
   statusEl.textContent = text;
   orb.style.borderColor = color;
   orb.style.boxShadow = `0 0 30px ${color}, inset 0 0 30px ${color}`;
 }
 
-// ===== LOGGING =====
+// ===== CHAT LOG =====
 function addLog(sender, text) {
   log.innerHTML += `<div><strong>${sender}:</strong> ${text}</div>`;
   log.scrollTop = log.scrollHeight;
@@ -47,13 +46,16 @@ function clearChat() {
   addLog("SYSTEM", "Chat cleared.");
 }
 
-// ===== SEND MESSAGE =====
+// ===== SEND =====
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
 
   addLog("YOU", message);
-  rememberChat("user", message);
+
+  if (typeof rememberChat === "function") {
+    rememberChat("user", message);
+  }
 
   history.push({
     role: "user",
@@ -85,19 +87,16 @@ async function sendMessage() {
     const data = await response.json();
     console.log("API response:", data);
 
-    let reply = "";
+    let reply = "Sorry, I couldn't generate a reply.";
 
     if (
       data &&
       data.choices &&
-      data.choices.length > 0 &&
-      data.choices[0].message
+      data.choices[0] &&
+      data.choices[0].message &&
+      data.choices[0].message.content
     ) {
-      reply = data.choices[0].message.content || "";
-    }
-
-    if (!reply) {
-      reply = "Sorry, I couldn't generate a reply.";
+      reply = data.choices[0].message.content;
     }
 
     history.push({
@@ -106,16 +105,18 @@ async function sendMessage() {
     });
 
     addLog("KARA", reply);
-    rememberChat("assistant", reply);
+
+    if (typeof rememberChat === "function") {
+      rememberChat("assistant", reply);
+    }
 
     if (typeof speak === "function") {
       speak(reply);
     }
 
     setState("READY", "#00e5ff");
-
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error(error);
     addLog("SYSTEM", "Connection failed");
     setState("ERROR", "#ff4d6d");
   }
@@ -124,12 +125,14 @@ async function sendMessage() {
 // ===== EVENTS =====
 sendBtn.addEventListener("click", sendMessage);
 
-clearBtn.addEventListener("click", clearChat);
+if (clearBtn) {
+  clearBtn.addEventListener("click", clearChat);
+}
 
-input.addEventListener("keydown", (e) => {
+input.addEventListener("keydown", function (e) {
   if (e.key === "Enter") {
     sendMessage();
   }
 });
 
-console.log("app.js loaded successfully");
+console.log("app.js loaded");
