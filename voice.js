@@ -2,38 +2,50 @@ const voiceBtn = document.getElementById("voiceBtn");
 
 let recognition;
 let listening = false;
+let availableVoices = [];
 
-// text to speech
+// Load voices properly
+function loadVoices() {
+  availableVoices = speechSynthesis.getVoices();
+  console.log("Voices loaded:", availableVoices);
+}
+
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+// Text to speech
 function speak(text) {
   if (!("speechSynthesis" in window)) return;
 
-  window.speechSynthesis.cancel();
+  speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "en-GB";
   utterance.rate = 1;
   utterance.pitch = 1;
 
-  const voices = speechSynthesis.getVoices();
-
-  let selectedVoice = voices.find(
+  let selectedVoice = availableVoices.find(
     voice => voice.name === "Google UK English Female"
   );
 
-  // fallback to Zira
+  // fallback
   if (!selectedVoice) {
-    selectedVoice = voices.find(
+    selectedVoice = availableVoices.find(
       voice => voice.name === "Microsoft Zira - English (United States)"
     );
   }
 
   if (selectedVoice) {
     utterance.voice = selectedVoice;
+    console.log("Using voice:", selectedVoice.name);
+  } else {
+    console.log("No preferred voice found");
   }
 
   speechSynthesis.speak(utterance);
 }
-// speech recognition
+
+// Speech recognition
 if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -55,7 +67,7 @@ if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
   };
 }
 
-// mic button
+// Mic button
 voiceBtn.addEventListener("click", () => {
   if (!recognition) {
     alert("Speech recognition not supported");
