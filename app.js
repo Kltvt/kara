@@ -45,7 +45,7 @@ async function sendMessage() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-chat-v3-0324:free",
+        model: "nvidia/nemotron-3-super-120b-a12b:free",
         messages: [
           {
             role: "system",
