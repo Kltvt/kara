@@ -40,7 +40,7 @@ async function sendMessage() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b:free",
+        model: "nvidia/nemotron-nano-9b-v2:free",
         messages: [
           {
             role: "system",
