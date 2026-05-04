@@ -11,61 +11,45 @@ const orb = document.getElementById("orb");
 
 const history = [];
 
-// ===== BOOT SEQUENCE =====
+// ===== BOOT =====
 function bootSequence() {
-  const bootMessages = [
-    "Initializing Kara...",
-    "Loading voice systems...",
-    "Memory module online...",
-    "Neural systems active...",
-    "Kara ready."
-  ];
+  addLog("SYSTEM", "Initializing Kara...");
+  setTimeout(() => addLog("SYSTEM", "Loading voice systems..."), 1000);
+  setTimeout(() => addLog("SYSTEM", "Memory module online..."), 2000);
+  setTimeout(() => addLog("SYSTEM", "Neural systems active..."), 3000);
+  setTimeout(() => {
+    addLog("SYSTEM", "Kara ready.");
+    setState("READY", "#00e5ff");
 
-  let index = 0;
-
-  function nextBoot() {
-    if (index < bootMessages.length) {
-      addLog("SYSTEM", bootMessages[index]);
-      index++;
-      setTimeout(nextBoot, 1000);
-    } else {
-      setState("READY", "#00e5ff");
-
-      if (typeof speak === "function") {
-        speak("Kara systems online.");
-      }
+    if (typeof speak === "function") {
+      speak("Kara systems online.");
     }
-  }
-
-  nextBoot();
+  }, 4000);
 }
 
 // ===== CLOCK =====
 function updateTime() {
   const timeEl = document.getElementById("time");
-
   if (timeEl) {
     timeEl.textContent = new Date().toLocaleTimeString();
   }
 }
-
 setInterval(updateTime, 1000);
 updateTime();
 
-// ===== STATUS =====
+// ===== UI =====
 function setState(text, color) {
   statusEl.textContent = text;
   orb.style.borderColor = color;
   orb.style.boxShadow = `0 0 30px ${color}, inset 0 0 30px ${color}`;
 }
 
-// ===== CHAT LOG =====
 function addLog(sender, text) {
   log.innerHTML += `<div><strong>${sender}:</strong> ${text}</div>`;
   log.scrollTop = log.scrollHeight;
 }
 
-// ===== CLEAR CHAT =====
+// ===== MEMORY =====
 function clearChat() {
   log.innerHTML = "";
   history.length = 0;
@@ -77,7 +61,52 @@ function clearChat() {
   addLog("SYSTEM", "Chat cleared.");
 }
 
-// ===== SEND MESSAGE =====
+// ===== LOCAL COMMANDS =====
+function runCommand(command) {
+  const cmd = command.toLowerCase().trim();
+
+  if (cmd === "time") {
+    const now = new Date().toLocaleTimeString();
+    addLog("KARA", `Current time is ${now}`);
+    speak(`Current time is ${now}`);
+    return true;
+  }
+
+  if (cmd === "date") {
+    const today = new Date().toDateString();
+    addLog("KARA", `Today is ${today}`);
+    speak(`Today is ${today}`);
+    return true;
+  }
+
+  if (cmd === "clear") {
+    clearChat();
+    return true;
+  }
+
+  if (cmd === "open youtube") {
+    window.open("https://youtube.com", "_blank");
+    addLog("SYSTEM", "Opening YouTube...");
+    return true;
+  }
+
+  if (cmd === "open google") {
+    window.open("https://google.com", "_blank");
+    addLog("SYSTEM", "Opening Google...");
+    return true;
+  }
+
+  if (cmd === "shutdown") {
+    addLog("SYSTEM", "Kara shutting down...");
+    setState("OFFLINE", "#ff4d6d");
+    speak("Shutting down.");
+    return true;
+  }
+
+  return false;
+}
+
+// ===== SEND =====
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
@@ -88,12 +117,15 @@ async function sendMessage() {
     rememberChat("user", message);
   }
 
+  input.value = "";
+
+  if (runCommand(message)) return;
+
   history.push({
     role: "user",
     content: message
   });
 
-  input.value = "";
   setState("PROCESSING", "#ffd166");
 
   try {
@@ -108,7 +140,7 @@ async function sendMessage() {
           {
             role: "system",
             content:
-              "You are Kara, a futuristic Jarvis-like personal AI assistant. Be concise, intelligent, and helpful."
+              "You are Kara, a futuristic Jarvis-like personal AI assistant."
           },
           ...history
         ]
@@ -116,7 +148,7 @@ async function sendMessage() {
     });
 
     const data = await response.json();
-    console.log("API response:", data);
+    console.log(data);
 
     let reply = "Sorry, I couldn't generate a reply.";
 
@@ -124,8 +156,7 @@ async function sendMessage() {
       data &&
       data.choices &&
       data.choices[0] &&
-      data.choices[0].message &&
-      data.choices[0].message.content
+      data.choices[0].message
     ) {
       reply = data.choices[0].message.content;
     }
@@ -146,6 +177,7 @@ async function sendMessage() {
     }
 
     setState("READY", "#00e5ff");
+
   } catch (error) {
     console.error(error);
     addLog("SYSTEM", "Connection failed");
