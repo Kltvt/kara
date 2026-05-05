@@ -44,7 +44,7 @@ function addLog(sender, text) {
   log.scrollTop = log.scrollHeight;
 }
 
-// ================= CHAT CLEAR =================
+// ================= CLEAR CHAT =================
 function clearChat() {
   log.innerHTML = "";
   history.length = 0;
@@ -88,21 +88,7 @@ function clearTasks() {
   if (typeof speak === "function") speak("Tasks cleared");
 }
 
-// ================= REMINDERS (PHASE 4 CORE) =================
-function parseTime(text) {
-  const match = text.match(/(\d+)\s*(second|seconds|minute|minutes|hour|hours)/i);
-  if (!match) return null;
-
-  const value = parseInt(match[1]);
-  const unit = match[2].toLowerCase();
-
-  if (unit.includes("second")) return value * 1000;
-  if (unit.includes("minute")) return value * 60 * 1000;
-  if (unit.includes("hour")) return value * 60 * 60 * 1000;
-
-  return null;
-}
-
+// ================= REMINDER (FIXED) =================
 function setReminder(task, delay) {
   addLog("KARA", `Reminder set: ${task}`);
 
@@ -121,14 +107,14 @@ function runCommand(command) {
   if (cmd === "time") {
     const now = new Date().toLocaleTimeString();
     addLog("KARA", `Time: ${now}`);
-    speak(`Time is ${now}`);
+    if (typeof speak === "function") speak(`Time is ${now}`);
     return true;
   }
 
   if (cmd === "date") {
     const today = new Date().toDateString();
     addLog("KARA", `Date: ${today}`);
-    speak(`Today is ${today}`);
+    if (typeof speak === "function") speak(`Today is ${today}`);
     return true;
   }
 
@@ -140,11 +126,11 @@ function runCommand(command) {
   if (cmd === "shutdown") {
     addLog("SYSTEM", "Kara shutting down...");
     setState("OFFLINE", "#ff4d6d");
-    speak("Shutting down");
+    if (typeof speak === "function") speak("Shutting down");
     return true;
   }
 
-  // OPEN ANY WEBSITE
+  // OPEN WEBSITE
   if (cmd.startsWith("open ")) {
     const site = command.replace(/open /i, "").trim();
     const url = `https://${site}.com`;
@@ -171,24 +157,21 @@ function runCommand(command) {
     return true;
   }
 
-  // REMINDERS
-  if (cmd.startsWith("remind me")) {
-    const parts = command.split("in");
+  // ================= FIXED REMINDER =================
+  const reminderMatch = command.toLowerCase().match(
+    /remind me (.+) in (\d+)\s*(second|seconds|minute|minutes|hour|hours)/
+  );
 
-    if (parts.length < 2) {
-      addLog("KARA", "Format: remind me <task> in <time>");
-      return true;
-    }
+  if (reminderMatch) {
+    const task = reminderMatch[1].trim();
+    const value = parseInt(reminderMatch[2]);
+    const unit = reminderMatch[3];
 
-    const task = parts[0].replace(/remind me/i, "").trim();
-    const timeText = parts[1].trim();
+    let delay = 0;
 
-    const delay = parseTime(timeText);
-
-    if (!delay) {
-      addLog("KARA", "Invalid time format");
-      return true;
-    }
+    if (unit.includes("second")) delay = value * 1000;
+    if (unit.includes("minute")) delay = value * 60 * 1000;
+    if (unit.includes("hour")) delay = value * 60 * 60 * 1000;
 
     setReminder(task, delay);
     return true;
@@ -197,7 +180,7 @@ function runCommand(command) {
   return false;
 }
 
-// ================= SEND =================
+// ================= SEND MESSAGE =================
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
@@ -226,7 +209,7 @@ async function sendMessage() {
           {
             role: "system",
             content:
-              "You are Kara, a Jarvis-like AI assistant. Be short, clear, and useful."
+              "You are Kara, a Jarvis-like AI assistant. Be concise and helpful."
           },
           ...history
         ]
