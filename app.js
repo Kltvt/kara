@@ -17,10 +17,17 @@ function bootSequence() {
   setTimeout(() => addLog("SYSTEM", "Loading voice systems..."), 800);
   setTimeout(() => addLog("SYSTEM", "Memory module online..."), 1600);
   setTimeout(() => addLog("SYSTEM", "Neural systems active..."), 2400);
+
   setTimeout(() => {
     addLog("SYSTEM", "Kara ready.");
     setState("READY", "#00e5ff");
-    if (typeof speak === "function") speak("Kara systems online.");
+
+    loadHistory();
+    restoreReminders();
+
+    if (typeof speak === "function") {
+      speak("Kara systems online.");
+    }
   }, 3200);
 }
 
@@ -44,11 +51,29 @@ function addLog(sender, text) {
   log.scrollTop = log.scrollHeight;
 }
 
-// ================= CLEAR CHAT =================
+// ================= CHAT STORAGE =================
+function saveHistory() {
+  localStorage.setItem("kara_history", JSON.stringify(history));
+}
+
+function loadHistory() {
+  const data = localStorage.getItem("kara_history");
+  if (!data) return;
+
+  const parsed = JSON.parse(data);
+  history.push(...parsed);
+
+  parsed.forEach(msg => {
+    addLog(msg.role.toUpperCase(), msg.content);
+  });
+}
+
+// ================= CHAT CLEAR =================
 function clearChat() {
   log.innerHTML = "";
   history.length = 0;
-  if (typeof clearMemory === "function") clearMemory();
+  localStorage.removeItem("kara_history");
+
   addLog("SYSTEM", "Chat cleared.");
 }
 
@@ -88,15 +113,47 @@ function clearTasks() {
   if (typeof speak === "function") speak("Tasks cleared");
 }
 
-// ================= REMINDER (FIXED) =================
+// ================= REMINDERS =================
+function saveReminder(task, delay) {
+  const reminders = JSON.parse(localStorage.getItem("kara_reminders")) || [];
+
+  reminders.push({
+    task,
+    time: Date.now() + delay
+  });
+
+  localStorage.setItem("kara_reminders", JSON.stringify(reminders));
+}
+
+function triggerReminder(task) {
+  addLog("REMINDER", task);
+  if (typeof speak === "function") {
+    speak(`Reminder: ${task}`);
+  }
+}
+
+function restoreReminders() {
+  const reminders = JSON.parse(localStorage.getItem("kara_reminders")) || [];
+  const now = Date.now();
+
+  reminders.forEach(r => {
+    const delay = r.time - now;
+
+    if (delay > 0) {
+      setTimeout(() => triggerReminder(r.task), delay);
+    } else {
+      triggerReminder(r.task);
+    }
+  });
+}
+
 function setReminder(task, delay) {
   addLog("KARA", `Reminder set: ${task}`);
 
+  saveReminder(task, delay);
+
   setTimeout(() => {
-    addLog("REMINDER", task);
-    if (typeof speak === "function") {
-      speak(`Reminder: ${task}`);
-    }
+    triggerReminder(task);
   }, delay);
 }
 
@@ -157,15 +214,15 @@ function runCommand(command) {
     return true;
   }
 
-  // ================= FIXED REMINDER =================
-  const reminderMatch = command.toLowerCase().match(
+  // REMINDERS
+  const match = command.toLowerCase().match(
     /remind me (.+) in (\d+)\s*(second|seconds|minute|minutes|hour|hours)/
   );
 
-  if (reminderMatch) {
-    const task = reminderMatch[1].trim();
-    const value = parseInt(reminderMatch[2]);
-    const unit = reminderMatch[3];
+  if (match) {
+    const task = match[1].trim();
+    const value = parseInt(match[2]);
+    const unit = match[3];
 
     let delay = 0;
 
@@ -180,22 +237,19 @@ function runCommand(command) {
   return false;
 }
 
-// ================= SEND MESSAGE =================
+// ================= SEND =================
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
 
   addLog("YOU", message);
 
-  if (typeof rememberChat === "function") {
-    rememberChat("user", message);
-  }
+  history.push({ role: "user", content: message });
+  saveHistory();
 
   input.value = "";
 
   if (runCommand(message)) return;
-
-  history.push({ role: "user", content: message });
 
   setState("PROCESSING", "#ffd166");
 
@@ -209,7 +263,7 @@ async function sendMessage() {
           {
             role: "system",
             content:
-              "You are Kara, a Jarvis-like AI assistant. Be concise and helpful."
+              "You are Kara, a Jarvis-like AI assistant. Be short, useful, and direct."
           },
           ...history
         ]
@@ -225,12 +279,9 @@ async function sendMessage() {
     }
 
     history.push({ role: "assistant", content: reply });
+    saveHistory();
 
     addLog("KARA", reply);
-
-    if (typeof rememberChat === "function") {
-      rememberChat("assistant", reply);
-    }
 
     if (typeof speak === "function") {
       speak(reply);
