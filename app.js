@@ -14,14 +14,14 @@ const history = [];
 // ================= BOOT =================
 function bootSequence() {
   addLog("SYSTEM", "Initializing Kara...");
-  setTimeout(() => addLog("SYSTEM", "Loading voice systems..."), 1000);
-  setTimeout(() => addLog("SYSTEM", "Memory module online..."), 2000);
-  setTimeout(() => addLog("SYSTEM", "Neural systems active..."), 3000);
+  setTimeout(() => addLog("SYSTEM", "Loading voice systems..."), 800);
+  setTimeout(() => addLog("SYSTEM", "Memory module online..."), 1600);
+  setTimeout(() => addLog("SYSTEM", "Neural systems active..."), 2400);
   setTimeout(() => {
     addLog("SYSTEM", "Kara ready.");
     setState("READY", "#00e5ff");
     if (typeof speak === "function") speak("Kara systems online.");
-  }, 4000);
+  }, 3200);
 }
 
 // ================= CLOCK =================
@@ -48,13 +48,11 @@ function addLog(sender, text) {
 function clearChat() {
   log.innerHTML = "";
   history.length = 0;
-
   if (typeof clearMemory === "function") clearMemory();
-
   addLog("SYSTEM", "Chat cleared.");
 }
 
-// ================= TASK SYSTEM =================
+// ================= TASKS =================
 function getTasks() {
   return JSON.parse(localStorage.getItem("kara_tasks")) || [];
 }
@@ -77,11 +75,10 @@ function showTasks() {
 
   if (tasks.length === 0) {
     addLog("KARA", "No tasks found.");
-    if (typeof speak === "function") speak("No tasks found");
     return;
   }
 
-  addLog("KARA", "Your tasks:");
+  addLog("KARA", "Tasks:");
   tasks.forEach((t, i) => addLog("TASK", `${i + 1}. ${t}`));
 }
 
@@ -91,21 +88,47 @@ function clearTasks() {
   if (typeof speak === "function") speak("Tasks cleared");
 }
 
+// ================= REMINDERS (PHASE 4 CORE) =================
+function parseTime(text) {
+  const match = text.match(/(\d+)\s*(second|seconds|minute|minutes|hour|hours)/i);
+  if (!match) return null;
+
+  const value = parseInt(match[1]);
+  const unit = match[2].toLowerCase();
+
+  if (unit.includes("second")) return value * 1000;
+  if (unit.includes("minute")) return value * 60 * 1000;
+  if (unit.includes("hour")) return value * 60 * 60 * 1000;
+
+  return null;
+}
+
+function setReminder(task, delay) {
+  addLog("KARA", `Reminder set: ${task}`);
+
+  setTimeout(() => {
+    addLog("REMINDER", task);
+    if (typeof speak === "function") {
+      speak(`Reminder: ${task}`);
+    }
+  }, delay);
+}
+
 // ================= COMMAND SYSTEM =================
 function runCommand(command) {
   const cmd = command.toLowerCase().trim();
 
   if (cmd === "time") {
     const now = new Date().toLocaleTimeString();
-    addLog("KARA", `Current time is ${now}`);
-    if (typeof speak === "function") speak(`Current time is ${now}`);
+    addLog("KARA", `Time: ${now}`);
+    speak(`Time is ${now}`);
     return true;
   }
 
   if (cmd === "date") {
     const today = new Date().toDateString();
-    addLog("KARA", `Today is ${today}`);
-    if (typeof speak === "function") speak(`Today is ${today}`);
+    addLog("KARA", `Date: ${today}`);
+    speak(`Today is ${today}`);
     return true;
   }
 
@@ -117,20 +140,16 @@ function runCommand(command) {
   if (cmd === "shutdown") {
     addLog("SYSTEM", "Kara shutting down...");
     setState("OFFLINE", "#ff4d6d");
-    if (typeof speak === "function") speak("Shutting down");
+    speak("Shutting down");
     return true;
   }
 
   // OPEN ANY WEBSITE
   if (cmd.startsWith("open ")) {
     const site = command.replace(/open /i, "").trim();
-
-    if (!site) return true;
-
     const url = `https://${site}.com`;
 
     window.open(url, "_blank");
-
     addLog("SYSTEM", `Opening ${site}`);
     return true;
   }
@@ -149,6 +168,29 @@ function runCommand(command) {
 
   if (cmd === "clear tasks") {
     clearTasks();
+    return true;
+  }
+
+  // REMINDERS
+  if (cmd.startsWith("remind me")) {
+    const parts = command.split("in");
+
+    if (parts.length < 2) {
+      addLog("KARA", "Format: remind me <task> in <time>");
+      return true;
+    }
+
+    const task = parts[0].replace(/remind me/i, "").trim();
+    const timeText = parts[1].trim();
+
+    const delay = parseTime(timeText);
+
+    if (!delay) {
+      addLog("KARA", "Invalid time format");
+      return true;
+    }
+
+    setReminder(task, delay);
     return true;
   }
 
@@ -184,7 +226,7 @@ async function sendMessage() {
           {
             role: "system",
             content:
-              "You are Kara, a Jarvis-like AI assistant. Be short, helpful, and direct."
+              "You are Kara, a Jarvis-like AI assistant. Be short, clear, and useful."
           },
           ...history
         ]
@@ -222,9 +264,7 @@ async function sendMessage() {
 // ================= EVENTS =================
 sendBtn.addEventListener("click", sendMessage);
 
-if (clearBtn) {
-  clearBtn.addEventListener("click", clearChat);
-}
+if (clearBtn) clearBtn.addEventListener("click", clearChat);
 
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
