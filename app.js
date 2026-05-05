@@ -11,7 +11,7 @@ const orb = document.getElementById("orb");
 
 const history = [];
 
-// ===== BOOT =====
+// ================= BOOT =================
 function bootSequence() {
   addLog("SYSTEM", "Initializing Kara...");
   setTimeout(() => addLog("SYSTEM", "Loading voice systems..."), 1000);
@@ -20,26 +20,19 @@ function bootSequence() {
   setTimeout(() => {
     addLog("SYSTEM", "Kara ready.");
     setState("READY", "#00e5ff");
-
-    if (typeof speak === "function") {
-      speak("Kara systems online.");
-    }
+    if (typeof speak === "function") speak("Kara systems online.");
   }, 4000);
 }
 
-// ===== CLOCK =====
+// ================= CLOCK =================
 function updateTime() {
   const timeEl = document.getElementById("time");
-
-  if (timeEl) {
-    timeEl.textContent = new Date().toLocaleTimeString();
-  }
+  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString();
 }
-
 setInterval(updateTime, 1000);
 updateTime();
 
-// ===== UI =====
+// ================= UI =================
 function setState(text, color) {
   statusEl.textContent = text;
   orb.style.borderColor = color;
@@ -51,33 +44,68 @@ function addLog(sender, text) {
   log.scrollTop = log.scrollHeight;
 }
 
-// ===== MEMORY =====
+// ================= CHAT CLEAR =================
 function clearChat() {
   log.innerHTML = "";
   history.length = 0;
 
-  if (typeof clearMemory === "function") {
-    clearMemory();
-  }
+  if (typeof clearMemory === "function") clearMemory();
 
   addLog("SYSTEM", "Chat cleared.");
 }
 
-// ===== LOCAL COMMANDS =====
+// ================= TASK SYSTEM =================
+function getTasks() {
+  return JSON.parse(localStorage.getItem("kara_tasks")) || [];
+}
+
+function saveTasks(tasks) {
+  localStorage.setItem("kara_tasks", JSON.stringify(tasks));
+}
+
+function addTask(task) {
+  const tasks = getTasks();
+  tasks.push(task);
+  saveTasks(tasks);
+
+  addLog("KARA", `Task added: ${task}`);
+  if (typeof speak === "function") speak("Task added");
+}
+
+function showTasks() {
+  const tasks = getTasks();
+
+  if (tasks.length === 0) {
+    addLog("KARA", "No tasks found.");
+    if (typeof speak === "function") speak("No tasks found");
+    return;
+  }
+
+  addLog("KARA", "Your tasks:");
+  tasks.forEach((t, i) => addLog("TASK", `${i + 1}. ${t}`));
+}
+
+function clearTasks() {
+  localStorage.removeItem("kara_tasks");
+  addLog("KARA", "All tasks cleared.");
+  if (typeof speak === "function") speak("Tasks cleared");
+}
+
+// ================= COMMAND SYSTEM =================
 function runCommand(command) {
   const cmd = command.toLowerCase().trim();
 
   if (cmd === "time") {
     const now = new Date().toLocaleTimeString();
     addLog("KARA", `Current time is ${now}`);
-    speak(`Current time is ${now}`);
+    if (typeof speak === "function") speak(`Current time is ${now}`);
     return true;
   }
 
   if (cmd === "date") {
     const today = new Date().toDateString();
     addLog("KARA", `Today is ${today}`);
-    speak(`Today is ${today}`);
+    if (typeof speak === "function") speak(`Today is ${today}`);
     return true;
   }
 
@@ -89,24 +117,45 @@ function runCommand(command) {
   if (cmd === "shutdown") {
     addLog("SYSTEM", "Kara shutting down...");
     setState("OFFLINE", "#ff4d6d");
-    speak("Shutting down.");
+    if (typeof speak === "function") speak("Shutting down");
     return true;
   }
 
+  // OPEN ANY WEBSITE
   if (cmd.startsWith("open ")) {
-    const site = cmd.replace("open ", "").trim();
+    const site = command.replace(/open /i, "").trim();
 
     if (!site) return true;
 
     const url = `https://${site}.com`;
-window.open(url, "_blank");
-addLog("SYSTEM", `Opening ${site}...`);
-return true;
+
+    window.open(url, "_blank");
+
+    addLog("SYSTEM", `Opening ${site}`);
+    return true;
+  }
+
+  // TASKS
+  if (cmd.startsWith("add task ")) {
+    const task = command.replace(/add task /i, "").trim();
+    addTask(task);
+    return true;
+  }
+
+  if (cmd === "show tasks") {
+    showTasks();
+    return true;
+  }
+
+  if (cmd === "clear tasks") {
+    clearTasks();
+    return true;
   }
 
   return false;
 }
-// ===== SEND =====
+
+// ================= SEND =================
 async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
@@ -121,51 +170,36 @@ async function sendMessage() {
 
   if (runCommand(message)) return;
 
-  history.push({
-    role: "user",
-    content: message
-  });
+  history.push({ role: "user", content: message });
 
   setState("PROCESSING", "#ffd166");
 
   try {
-    const response = await fetch(API_URL, {
+    const res = await fetch(API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: MODEL,
         messages: [
           {
             role: "system",
             content:
-              "You are Kara, a futuristic Jarvis-like personal AI assistant."
+              "You are Kara, a Jarvis-like AI assistant. Be short, helpful, and direct."
           },
           ...history
         ]
       })
     });
 
-    const data = await response.json();
-    console.log(data);
+    const data = await res.json();
 
-    let reply = "Sorry, I couldn't generate a reply.";
+    let reply = "No response.";
 
-    if (
-      data &&
-      data.choices &&
-      data.choices[0] &&
-      data.choices[0].message &&
-      data.choices[0].message.content
-    ) {
+    if (data?.choices?.[0]?.message?.content) {
       reply = data.choices[0].message.content;
     }
 
-    history.push({
-      role: "assistant",
-      content: reply
-    });
+    history.push({ role: "assistant", content: reply });
 
     addLog("KARA", reply);
 
@@ -178,28 +212,24 @@ async function sendMessage() {
     }
 
     setState("READY", "#00e5ff");
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     addLog("SYSTEM", "Connection failed");
     setState("ERROR", "#ff4d6d");
   }
 }
 
-// ===== EVENTS =====
+// ================= EVENTS =================
 sendBtn.addEventListener("click", sendMessage);
 
 if (clearBtn) {
   clearBtn.addEventListener("click", clearChat);
 }
 
-input.addEventListener("keydown", function (e) {
-  if (e.key === "Enter") {
-    sendMessage();
-  }
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendMessage();
 });
 
-window.addEventListener("load", function () {
-  bootSequence();
-});
+window.addEventListener("load", bootSequence);
 
 console.log("app.js loaded");
