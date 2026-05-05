@@ -99,9 +99,9 @@ function runCommand(command) {
     if (!site) return true;
 
     const url = `https://${site}.com`;
-
-    window.location.assign(url);
-    return true;
+window.open(url, "_blank");
+addLog("SYSTEM", `Opening ${site}...`);
+return true;
   }
 
   return false;
