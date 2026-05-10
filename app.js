@@ -52,7 +52,6 @@ function bootSequence() {
 }
 
 // ── COMMAND SYSTEM ────────────────────────────────
-// These run instantly — no AI needed
 function runCommand(message) {
   const cmd = message.toLowerCase().trim();
 
@@ -87,24 +86,25 @@ function runCommand(message) {
   }
 
   // OPEN WEBSITE
-  // usage: open youtube   → opens youtube.com
-  // usage: open github    → opens github.com
   if (cmd.startsWith("open ")) {
-    const site = message.replace(/open /i, "").trim();
+    let site = message.replace(/open /i, "").trim().toLowerCase();
+
+    // Remove .com if they already typed it
+    site = site.replace(/\.com$/, "");
+
     window.open(`https://${site}.com`, "_blank");
     addLog("KARA", `Opening ${site}.com`);
     if (typeof speak === "function") speak(`Opening ${site}`);
     return true;
   }
 
-  // HELP — shows all commands
+  // HELP
   if (cmd === "help") {
     addLog("KARA", "Commands: time | date | clear | shutdown | open [site] | help");
     if (typeof speak === "function") speak("Here are your available commands.");
     return true;
   }
 
-  // Not a command — return false so AI handles it
   return false;
 }
 
@@ -113,13 +113,13 @@ async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
 
-  addLog("YOU", message);
   input.value = "";
 
-  // Try command first
+  // ✅ Commands run FIRST — AI never sees them
   if (runCommand(message)) return;
 
-  // Not a command — send to AI
+  // If not a command, go to AI
+  addLog("YOU", message);
   history.push({ role: "user", content: message });
 
   setState("THINKING", "#ffd166");
@@ -131,7 +131,7 @@ async function sendMessage() {
       body: JSON.stringify({
         model: MODEL,
         messages: [
-          { role: "system", content: "You are Kara, a Jarvis-like AI assistant. Be short, useful, and direct." },
+          { role: "system", content: "You are Kara, a Jarvis-like AI assistant. Be short, useful, and direct. Never suggest opening websites — the system handles that." },
           ...history
         ]
       })
@@ -141,7 +141,6 @@ async function sendMessage() {
     const reply = data?.choices?.[0]?.message?.content || "No response.";
 
     history.push({ role: "assistant", content: reply });
-
     addLog("KARA", reply);
 
     if (typeof speak === "function") speak(reply);
