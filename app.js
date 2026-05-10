@@ -4,8 +4,10 @@ const log      = document.getElementById("log");
 const statusEl = document.getElementById("status");
 const orb      = document.getElementById("orb");
 
-const API_URL = "https://budy-ai.klt770586.workers.dev";
-const MODEL   = "nvidia/nemotron-3-super-120b-a12b:free";
+// ⚠️ CHANGE THIS to your Worker URL
+const MEMORY_API = "https://kara-memory-api.aklt770586.workers.dev";
+const AI_API     = "https://budy-ai.klt770586.workers.dev";
+const MODEL      = "nvidia/nemotron-3-super-120b-a12b:free";
 
 const history = [];
 
@@ -33,33 +35,52 @@ function addLog(sender, text) {
 }
 
 // ══════════════════════════════════════════════════
-//  MEMORY
+//  SERVER MEMORY
 // ══════════════════════════════════════════════════
 
-function saveHistory() {
-  localStorage.setItem("kara_history", JSON.stringify(history));
+async function saveMessage(role, content) {
+  try {
+    await fetch(`${MEMORY_API}/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role, content }),
+    });
+  } catch (err) {
+    console.warn("Save failed:", err);
+  }
 }
 
-function loadHistory() {
-  const saved = localStorage.getItem("kara_history");
-  if (!saved) return;
+async function loadHistory() {
+  try {
+    const res  = await fetch(`${MEMORY_API}/history`);
+    const data = await res.json();
 
-  const messages = JSON.parse(saved);
-  history.push(...messages);
+    if (data.messages && data.messages.length > 0) {
+      history.push(...data.messages);
 
-  const recent = messages.slice(-20);
-  recent.forEach(msg => {
-    addLog(msg.role === "user" ? "YOU" : "KARA", msg.content);
-  });
+      // Show last 20 messages
+      const recent = data.messages.slice(-20);
+      recent.forEach(msg => {
+        addLog(msg.role === "user" ? "YOU" : "KARA", msg.content);
+      });
 
-  addLog("SYSTEM", `Memory restored — ${messages.length} messages loaded.`);
+      addLog("SYSTEM", `Memory restored — ${data.messages.length} messages loaded.`);
+    }
+
+    return data;
+  } catch (err) {
+    addLog("SYSTEM", "Could not load memory. Running offline.");
+    return { messages: [], tasks: [], reminders: [] };
+  }
 }
 
-function clearMemory() {
+async function clearMemory() {
+  try {
+    await fetch(`${MEMORY_API}/clear`, { method: "DELETE" });
+  } catch (err) {
+    console.warn("Clear failed:", err);
+  }
   history.length = 0;
-  localStorage.removeItem("kara_history");
-  localStorage.removeItem("kara_tasks");
-  localStorage.removeItem("kara_reminders");
   log.innerHTML = "";
   addLog("SYSTEM", "Memory cleared.");
   if (typeof speak === "function") speak("Memory cleared.");
@@ -69,14 +90,15 @@ function clearMemory() {
 //  BOOT
 // ══════════════════════════════════════════════════
 
-function bootSequence() {
+async function bootSequence() {
   addLog("SYSTEM", "Initializing Kara...");
   setTimeout(() => addLog("SYSTEM", "Voice systems loading..."), 800);
   setTimeout(() => addLog("SYSTEM", "Neural core active..."),   1600);
-  setTimeout(() => addLog("SYSTEM", "Restoring memory..."),     2000);
-  setTimeout(() => {
-    loadHistory();
-    restoreReminders();
+  setTimeout(() => addLog("SYSTEM", "Connecting to memory server..."), 2000);
+
+  setTimeout(async () => {
+    const data = await loadHistory();
+    await restoreReminders(data.reminders || []);
     addLog("SYSTEM", "Kara ready.");
     setState("READY", "#00e5ff");
     if (typeof speak === "function") speak("Kara online.");
@@ -87,36 +109,31 @@ function bootSequence() {
 //  TASKS
 // ══════════════════════════════════════════════════
 
-function getTasks() {
-  return JSON.parse(localStorage.getItem("kara_tasks")) || [];
-}
-
-function saveTasks(tasks) {
-  localStorage.setItem("kara_tasks", JSON.stringify(tasks));
-}
-
-function addTask(task) {
-  const tasks = getTasks();
-  tasks.push({ task, done: false });
-  saveTasks(tasks);
+async function addTask(task) {
+  await fetch(`${MEMORY_API}/task/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task }),
+  });
   addLog("KARA", `Task added ✅ — ${task}`);
   if (typeof speak === "function") speak(`Task added: ${task}`);
 }
 
-function showTasks() {
-  const tasks = getTasks();
+async function showTasks() {
+  const res   = await fetch(`${MEMORY_API}/history`);
+  const data  = await res.json();
+  const tasks = data.tasks || [];
+
   if (tasks.length === 0) {
     addLog("KARA", "No tasks found.");
     return;
   }
   addLog("KARA", `You have ${tasks.length} task(s):`);
-  tasks.forEach((t, i) => {
-    addLog("TASK", `${i + 1}. ${t.task}`);
-  });
+  tasks.forEach((t, i) => addLog("TASK", `${i + 1}. ${t.task}`));
 }
 
-function clearTasks() {
-  localStorage.removeItem("kara_tasks");
+async function clearTasks() {
+  await fetch(`${MEMORY_API}/task/clear`, { method: "DELETE" });
   addLog("KARA", "All tasks cleared.");
   if (typeof speak === "function") speak("All tasks cleared.");
 }
@@ -125,10 +142,14 @@ function clearTasks() {
 //  REMINDERS
 // ══════════════════════════════════════════════════
 
-function setReminder(task, delay) {
-  const reminders = JSON.parse(localStorage.getItem("kara_reminders")) || [];
-  reminders.push({ task, fireAt: Date.now() + delay });
-  localStorage.setItem("kara_reminders", JSON.stringify(reminders));
+async function setReminder(task, delay) {
+  const fireAt = new Date(Date.now() + delay).toISOString();
+
+  await fetch(`${MEMORY_API}/reminder/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task, fireAt }),
+  });
 
   scheduleReminder(task, delay);
   addLog("KARA", `Reminder set ⏰ — "${task}"`);
@@ -150,28 +171,26 @@ function scheduleReminder(task, delay) {
   }, delay);
 }
 
-function restoreReminders() {
-  const reminders = JSON.parse(localStorage.getItem("kara_reminders")) || [];
+async function restoreReminders(reminders) {
   const now = Date.now();
-  const active = [];
 
   reminders.forEach(r => {
-    const delay = r.fireAt - now;
+    if (r.done) return;
+    const delay = new Date(r.fireAt).getTime() - now;
     if (delay > 0) {
       scheduleReminder(r.task, delay);
-      active.push(r);
       addLog("SYSTEM", `Reminder restored — "${r.task}"`);
+    } else {
+      addLog("⏰ MISSED REMINDER", `${r.task}`);
     }
   });
-
-  localStorage.setItem("kara_reminders", JSON.stringify(active));
 }
 
 // ══════════════════════════════════════════════════
 //  COMMAND SYSTEM
 // ══════════════════════════════════════════════════
 
-function runCommand(message) {
+async function runCommand(message) {
   const cmd = message.toLowerCase().trim();
 
   if (cmd === "time") {
@@ -189,7 +208,7 @@ function runCommand(message) {
   }
 
   if (cmd === "clear") {
-    clearMemory();
+    await clearMemory();
     return true;
   }
 
@@ -211,17 +230,17 @@ function runCommand(message) {
 
   if (cmd.startsWith("add task ")) {
     const task = message.replace(/add task /i, "").trim();
-    addTask(task);
+    await addTask(task);
     return true;
   }
 
   if (cmd === "show tasks" || cmd === "tasks") {
-    showTasks();
+    await showTasks();
     return true;
   }
 
   if (cmd === "clear tasks") {
-    clearTasks();
+    await clearTasks();
     return true;
   }
 
@@ -238,7 +257,7 @@ function runCommand(message) {
     if (unit.startsWith("minute")) delay = value * 60 * 1000;
     if (unit.startsWith("hour"))   delay = value * 60 * 60 * 1000;
 
-    setReminder(task, delay);
+    await setReminder(task, delay);
     return true;
   }
 
@@ -269,17 +288,17 @@ async function sendMessage() {
   input.value = "";
 
   // Commands run FIRST — AI never sees them
-  if (runCommand(message)) return;
+  if (await runCommand(message)) return;
 
   // Send to AI
   addLog("YOU", message);
   history.push({ role: "user", content: message });
-  saveHistory();
+  await saveMessage("user", message);
 
   setState("THINKING", "#ffd166");
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetch(AI_API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -298,7 +317,7 @@ async function sendMessage() {
     const reply = data?.choices?.[0]?.message?.content || "No response.";
 
     history.push({ role: "assistant", content: reply });
-    saveHistory();
+    await saveMessage("assistant", reply);
 
     addLog("KARA", reply);
     if (typeof speak === "function") speak(reply);
