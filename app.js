@@ -32,25 +32,38 @@ function addLog(sender, text) {
   log.scrollTop = log.scrollHeight;
 }
 
-// ── CLEAR CHAT ────────────────────────────────────
-function clearChat() {
-  log.innerHTML = "";
-  history.length = 0;
-  addLog("SYSTEM", "Chat cleared.");
+// ══════════════════════════════════════════════════
+//  MEMORY — save & load chat history
+// ══════════════════════════════════════════════════
+
+function saveHistory() {
+  localStorage.setItem("kara_history", JSON.stringify(history));
 }
 
-// ── BOOT ──────────────────────────────────────────
-function bootSequence() {
-  addLog("SYSTEM", "Initializing Kara...");
-  setTimeout(() => addLog("SYSTEM", "Voice systems loading..."),  800);
-  setTimeout(() => addLog("SYSTEM", "Neural core active..."),    1600);
-  setTimeout(() => addLog("SYSTEM", "Loading tasks..."),         2000);
-  setTimeout(() => {
-    restoreReminders();
-    addLog("SYSTEM", "Kara ready.");
-    setState("READY", "#00e5ff");
-    if (typeof speak === "function") speak("Kara online.");
-  }, 2400);
+function loadHistory() {
+  const saved = localStorage.getItem("kara_history");
+  if (!saved) return;
+
+  const messages = JSON.parse(saved);
+  history.push(...messages);
+
+  // Show last 20 messages so screen doesn't flood
+  const recent = messages.slice(-20);
+  recent.forEach(msg => {
+    addLog(msg.role === "user" ? "YOU" : "KARA", msg.content);
+  });
+
+  addLog("SYSTEM", `Memory restored — ${messages.length} messages loaded.`);
+}
+
+function clearMemory() {
+  history.length = 0;
+  localStorage.removeItem("kara_history");
+  localStorage.removeItem("kara_tasks");
+  localStorage.removeItem("kara_reminders");
+  log.innerHTML = "";
+  addLog("SYSTEM", "Memory cleared.");
+  if (typeof speak === "function") speak("Memory cleared.");
 }
 
 // ══════════════════════════════════════════════════
@@ -96,12 +109,10 @@ function clearTasks() {
 // ══════════════════════════════════════════════════
 
 function setReminder(task, delay) {
-  // Save to localStorage so it survives refresh
   const reminders = JSON.parse(localStorage.getItem("kara_reminders")) || [];
   reminders.push({ task, fireAt: Date.now() + delay });
   localStorage.setItem("kara_reminders", JSON.stringify(reminders));
 
-  // Schedule it right now
   scheduleReminder(task, delay);
   addLog("KARA", `Reminder set ⏰ — "${task}"`);
   if (typeof speak === "function") speak(`Reminder set for ${task}`);
@@ -109,24 +120,19 @@ function setReminder(task, delay) {
 
 function scheduleReminder(task, delay) {
   setTimeout(() => {
-    // Flash orb red
     setState("REMINDER", "#ff4d6d");
-
-    // Show in chat
     addLog("⏰ REMINDER", `Time to ${task}!`);
 
-    // Say it out loud 3 times so you don't miss it
     if (typeof speak === "function") {
       speak(`Reminder! Time to ${task}!`);
       setTimeout(() => speak(`Hey! Time to ${task}!`), 3000);
       setTimeout(() => speak(`Don't forget! ${task}!`), 6000);
     }
 
-    // Orb back to normal after 5 seconds
     setTimeout(() => setState("READY", "#00e5ff"), 5000);
-
   }, delay);
 }
+
 function restoreReminders() {
   const reminders = JSON.parse(localStorage.getItem("kara_reminders")) || [];
   const now = Date.now();
@@ -137,11 +143,10 @@ function restoreReminders() {
     if (delay > 0) {
       scheduleReminder(r.task, delay);
       active.push(r);
+      addLog("SYSTEM", `Reminder restored — "${r.task}"`);
     }
-    // expired reminders are dropped
   });
 
-  // Save back only active ones
   localStorage.setItem("kara_reminders", JSON.stringify(active));
 }
 
@@ -152,7 +157,6 @@ function restoreReminders() {
 function runCommand(message) {
   const cmd = message.toLowerCase().trim();
 
-  // TIME
   if (cmd === "time") {
     const now = new Date().toLocaleTimeString();
     addLog("KARA", `Current time is ${now}`);
@@ -160,7 +164,6 @@ function runCommand(message) {
     return true;
   }
 
-  // DATE
   if (cmd === "date") {
     const today = new Date().toDateString();
     addLog("KARA", `Today is ${today}`);
@@ -168,13 +171,11 @@ function runCommand(message) {
     return true;
   }
 
-  // CLEAR
   if (cmd === "clear") {
-    clearChat();
+    clearMemory();
     return true;
   }
 
-  // SHUTDOWN
   if (cmd === "shutdown") {
     addLog("SYSTEM", "Kara shutting down...");
     setState("OFFLINE", "#ff4d6d");
@@ -182,7 +183,6 @@ function runCommand(message) {
     return true;
   }
 
-  // OPEN WEBSITE
   if (cmd.startsWith("open ")) {
     let site = message.replace(/open /i, "").trim().toLowerCase();
     site = site.replace(/\.com$/, "");
@@ -192,30 +192,22 @@ function runCommand(message) {
     return true;
   }
 
-  // ADD TASK
-  // usage: add task buy groceries
   if (cmd.startsWith("add task ")) {
     const task = message.replace(/add task /i, "").trim();
     addTask(task);
     return true;
   }
 
-  // SHOW TASKS
   if (cmd === "show tasks" || cmd === "tasks") {
     showTasks();
     return true;
   }
 
-  // CLEAR TASKS
   if (cmd === "clear tasks") {
     clearTasks();
     return true;
   }
 
-  // REMIND ME
-  // usage: remind me drink water in 5 minutes
-  // usage: remind me call mom in 2 hours
-  // usage: remind me standup in 30 seconds
   const reminderMatch = cmd.match(
     /^remind me (.+) in (\d+)\s*(second|seconds|minute|minutes|hour|hours)$/
   );
@@ -233,7 +225,6 @@ function runCommand(message) {
     return true;
   }
 
-  // HELP
   if (cmd === "help") {
     addLog("KARA", `
       Commands:<br>
@@ -260,12 +251,13 @@ async function sendMessage() {
 
   input.value = "";
 
-  // Commands run FIRST — AI never sees them
+  // Commands run FIRST
   if (runCommand(message)) return;
 
-  // Not a command — send to AI
+  // Send to AI
   addLog("YOU", message);
   history.push({ role: "user", content: message });
+  saveHistory();
 
   setState("THINKING", "#ffd166");
 
@@ -289,6 +281,8 @@ async function sendMessage() {
     const reply = data?.choices?.[0]?.message?.content || "No response.";
 
     history.push({ role: "assistant", content: reply });
+    saveHistory();
+
     addLog("KARA", reply);
 
     if (typeof speak === "function") speak(reply);
