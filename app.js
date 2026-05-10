@@ -109,11 +109,24 @@ function setReminder(task, delay) {
 
 function scheduleReminder(task, delay) {
   setTimeout(() => {
-    addLog("⏰ REMINDER", task);
-    if (typeof speak === "function") speak(`Reminder: ${task}`);
+    // Flash orb red
+    setState("REMINDER", "#ff4d6d");
+
+    // Show in chat
+    addLog("⏰ REMINDER", `Time to ${task}!`);
+
+    // Say it out loud 3 times so you don't miss it
+    if (typeof speak === "function") {
+      speak(`Reminder! Time to ${task}!`);
+      setTimeout(() => speak(`Hey! Time to ${task}!`), 3000);
+      setTimeout(() => speak(`Don't forget! ${task}!`), 6000);
+    }
+
+    // Orb back to normal after 5 seconds
+    setTimeout(() => setState("READY", "#00e5ff"), 5000);
+
   }, delay);
 }
-
 function restoreReminders() {
   const reminders = JSON.parse(localStorage.getItem("kara_reminders")) || [];
   const now = Date.now();
