@@ -33,7 +33,7 @@ function addLog(sender, text) {
 }
 
 // ══════════════════════════════════════════════════
-//  MEMORY — save & load chat history
+//  MEMORY
 // ══════════════════════════════════════════════════
 
 function saveHistory() {
@@ -47,7 +47,6 @@ function loadHistory() {
   const messages = JSON.parse(saved);
   history.push(...messages);
 
-  // Show last 20 messages so screen doesn't flood
   const recent = messages.slice(-20);
   recent.forEach(msg => {
     addLog(msg.role === "user" ? "YOU" : "KARA", msg.content);
@@ -64,6 +63,24 @@ function clearMemory() {
   log.innerHTML = "";
   addLog("SYSTEM", "Memory cleared.");
   if (typeof speak === "function") speak("Memory cleared.");
+}
+
+// ══════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════
+
+function bootSequence() {
+  addLog("SYSTEM", "Initializing Kara...");
+  setTimeout(() => addLog("SYSTEM", "Voice systems loading..."), 800);
+  setTimeout(() => addLog("SYSTEM", "Neural core active..."),   1600);
+  setTimeout(() => addLog("SYSTEM", "Restoring memory..."),     2000);
+  setTimeout(() => {
+    loadHistory();
+    restoreReminders();
+    addLog("SYSTEM", "Kara ready.");
+    setState("READY", "#00e5ff");
+    if (typeof speak === "function") speak("Kara online.");
+  }, 2400);
 }
 
 // ══════════════════════════════════════════════════
@@ -251,7 +268,7 @@ async function sendMessage() {
 
   input.value = "";
 
-  // Commands run FIRST
+  // Commands run FIRST — AI never sees them
   if (runCommand(message)) return;
 
   // Send to AI
@@ -284,7 +301,6 @@ async function sendMessage() {
     saveHistory();
 
     addLog("KARA", reply);
-
     if (typeof speak === "function") speak(reply);
 
     setState("READY", "#00e5ff");
