@@ -17,7 +17,7 @@ function updateTime() {
 setInterval(updateTime, 1000);
 updateTime();
 
-// ── STATE (orb color changes) ─────────────────────
+// ── STATE ─────────────────────────────────────────
 function setState(text, color) {
   statusEl.textContent = text;
   orb.style.borderColor = color;
@@ -32,6 +32,13 @@ function addLog(sender, text) {
   log.scrollTop = log.scrollHeight;
 }
 
+// ── CLEAR CHAT ────────────────────────────────────
+function clearChat() {
+  log.innerHTML = "";
+  history.length = 0;
+  addLog("SYSTEM", "Chat cleared.");
+}
+
 // ── BOOT ──────────────────────────────────────────
 function bootSequence() {
   addLog("SYSTEM", "Initializing Kara...");
@@ -44,6 +51,63 @@ function bootSequence() {
   }, 2400);
 }
 
+// ── COMMAND SYSTEM ────────────────────────────────
+// These run instantly — no AI needed
+function runCommand(message) {
+  const cmd = message.toLowerCase().trim();
+
+  // TIME
+  if (cmd === "time") {
+    const now = new Date().toLocaleTimeString();
+    addLog("KARA", `Current time is ${now}`);
+    if (typeof speak === "function") speak(`The time is ${now}`);
+    return true;
+  }
+
+  // DATE
+  if (cmd === "date") {
+    const today = new Date().toDateString();
+    addLog("KARA", `Today is ${today}`);
+    if (typeof speak === "function") speak(`Today is ${today}`);
+    return true;
+  }
+
+  // CLEAR
+  if (cmd === "clear") {
+    clearChat();
+    return true;
+  }
+
+  // SHUTDOWN
+  if (cmd === "shutdown") {
+    addLog("SYSTEM", "Kara shutting down...");
+    setState("OFFLINE", "#ff4d6d");
+    if (typeof speak === "function") speak("Shutting down. Goodbye.");
+    return true;
+  }
+
+  // OPEN WEBSITE
+  // usage: open youtube   → opens youtube.com
+  // usage: open github    → opens github.com
+  if (cmd.startsWith("open ")) {
+    const site = message.replace(/open /i, "").trim();
+    window.open(`https://${site}.com`, "_blank");
+    addLog("KARA", `Opening ${site}.com`);
+    if (typeof speak === "function") speak(`Opening ${site}`);
+    return true;
+  }
+
+  // HELP — shows all commands
+  if (cmd === "help") {
+    addLog("KARA", "Commands: time | date | clear | shutdown | open [site] | help");
+    if (typeof speak === "function") speak("Here are your available commands.");
+    return true;
+  }
+
+  // Not a command — return false so AI handles it
+  return false;
+}
+
 // ── SEND MESSAGE ──────────────────────────────────
 async function sendMessage() {
   const message = input.value.trim();
@@ -52,6 +116,10 @@ async function sendMessage() {
   addLog("YOU", message);
   input.value = "";
 
+  // Try command first
+  if (runCommand(message)) return;
+
+  // Not a command — send to AI
   history.push({ role: "user", content: message });
 
   setState("THINKING", "#ffd166");
