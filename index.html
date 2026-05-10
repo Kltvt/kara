@@ -2,20 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kara AI</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <h1>KARA</h1>
+  <div class="topbar">
+    <div id="time"></div>
+    <div>KARA SYSTEM ONLINE</div>
+  </div>
 
-  <div id="log"></div>
+  <main class="main">
+    <div class="orb" id="orb"></div>
+    <div id="status">IDLE</div>
+    <div id="log"></div>
+  </main>
 
-  <div class="input-box">
-    <input id="userInput" placeholder="Talk to Kara..." />
-    <button id="sendBtn">Send</button>
+  <div class="command-box">
+    <input id="userInput" placeholder="Issue command..." />
+    <button id="sendBtn">Run</button>
+    <button id="micBtn">🎤</button>
   </div>
 
   <script src="app.js"></script>
+  <script src="voice.js"></script>
+
 </body>
 </html>
