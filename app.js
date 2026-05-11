@@ -8,6 +8,7 @@ const orb      = document.getElementById("orb");
 const MEMORY_API = "https://kara-memory-api.aklt770586.workers.dev";
 const AI_API     = "https://api-key.aklt770586.workers.dev";
 const MODEL      = "nvidia/nemotron-super-49b-v1:free";
+
 const history = [];
 
 // ══════════════════════════════════════════════════
