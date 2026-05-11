@@ -429,8 +429,14 @@ async function sendMessage() {
 
   input.value = "";
   addLog("YOU", message);
-  setState("THINKING", "#ffd166");
 
+  // ✅ If setup is running — send to setup handler
+  if (typeof isSetupMode !== "undefined" && isSetupMode) {
+    await handleSetupInput(message);
+    return;
+  }
+
+  setState("THINKING", "#ffd166");
   // ✅ STEP 1 — Check local commands first (instant, no AI)
   const localHandled = await checkLocalCommand(message);
   if (localHandled) {
