@@ -1,13 +1,13 @@
 const CACHE_NAME = "kara-v1";
 
 const FILES = [
-  "./",
-  "./index.html",
-  "./style.css",
-  "./app.js",
-  "./voice.js",
-  "./notifications.js",
-  "./sw.js"
+  "/kara/",
+  "/kara/index.html",
+  "/kara/style.css",
+  "/kara/app.js",
+  "/kara/voice.js",
+  "/kara/notifications.js",
+  "/kara/sw.js"
 ];
 
 // ── INSTALL ───────────────────────────────────────
