@@ -160,31 +160,24 @@ async function setReminder(task, delay) {
 }
 
 function scheduleReminder(task, delay) {
-  // Background notification (works even when tab minimized)
+  // Send to service worker for background notification
   if (typeof scheduleBackgroundReminder === "function") {
     scheduleBackgroundReminder(task, delay);
   }
 
-  // In-app reminder (when tab is active)
+  // In-app timer
   setTimeout(() => {
     setState("REMINDER", "#ff4d6d");
     addLog("⏰ REMINDER", `Time to ${task}!`);
 
-    // Show notification too
-    if (typeof showNotification === "function") {
-      showNotification("⏰ Kara Reminder", `Time to ${task}!`);
-    }
-
-    if (typeof speak === "function") {
-      speak(`Reminder! Time to ${task}!`);
-      setTimeout(() => speak(`Hey! Time to ${task}!`), 3000);
-      setTimeout(() => speak(`Don't forget! ${task}!`), 6000);
+    // ✅ Mobile safe — handles voice + sound + notification
+    if (typeof fireMobileReminder === "function") {
+      fireMobileReminder(task);
     }
 
     setTimeout(() => setState("READY", "#00e5ff"), 5000);
   }, delay);
 }
-
 async function restoreReminders(reminders) {
   const now = Date.now();
   reminders.forEach(r => {
