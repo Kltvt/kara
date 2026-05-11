@@ -5,7 +5,7 @@ const statusEl = document.getElementById("status");
 const orb      = document.getElementById("orb");
 
 // ⚠️ CHANGE THIS to your Worker URL
-const MEMORY_API = "https://kara-memory-api.klt770586.workers.dev";
+const MEMORY_API = "https://kara-memory-api.aklt770586.workers.dev";
 const AI_API     = "https://budy-ai.klt770586.workers.dev";
 const MODEL      = "nvidia/nemotron-3-super-120b-a12b:free";
 
