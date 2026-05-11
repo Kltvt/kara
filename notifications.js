@@ -2,131 +2,139 @@ let swRegistration = null;
 
 // ── REGISTER SERVICE WORKER ───────────────────────
 async function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) {
-    console.warn("Service Worker not supported");
-    return;
-  }
-
+  if (!("serviceWorker" in navigator)) return;
   try {
     swRegistration = await navigator.serviceWorker.register("/kara/sw.js");
     console.log("Service Worker registered ✅", swRegistration.scope);
   } catch (err) {
     console.warn("Service Worker failed:", err);
-    addLog("SYSTEM", "Background agent unavailable.");
   }
 }
 
 // ── NOTIFICATION PERMISSION ───────────────────────
 async function requestNotificationPermission() {
-  if (!("Notification" in window)) {
-    addLog("SYSTEM", "Notifications not supported.");
-    return false;
-  }
-
+  if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
-
-  if (Notification.permission === "denied") {
-    addLog("SYSTEM", "Notifications blocked. Enable in browser settings.");
-    return false;
-  }
-
+  if (Notification.permission === "denied") return false;
   const permission = await Notification.requestPermission();
-
-  if (permission === "granted") {
-    addLog("SYSTEM", "Notifications enabled ✅");
-    if (typeof speak === "function") speak("Notifications enabled.");
-    return true;
-  } else {
-    addLog("SYSTEM", "Notifications denied.");
-    return false;
-  }
+  return permission === "granted";
 }
 
 // ── BACKGROUND REMINDER ───────────────────────────
 function scheduleBackgroundReminder(task, delay) {
   if (swRegistration?.active) {
     swRegistration.active.postMessage({ type: "REMINDER", task, delay });
-    console.log(`Background reminder scheduled: "${task}" in ${delay}ms`);
-  } else {
-    console.warn("Service Worker not ready yet.");
   }
 }
 
 // ── SHOW NOTIFICATION ─────────────────────────────
 function showNotification(title, body) {
   if (Notification.permission === "granted") {
-    new Notification(title, {
-      body,
-      requireInteraction: true,
-    });
+    new Notification(title, { body, requireInteraction: true });
   }
 }
 
-// ── PLAY ALERT SOUND (works on mobile) ───────────
-function playAlertSound() {
+// ══════════════════════════════════════════════════
+//  ALARM SOUND SYSTEM
+//  Works on mobile even in background
+// ══════════════════════════════════════════════════
+
+let alarmInterval  = null;
+let audioCtx       = null;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  // Resume if suspended (mobile requires this)
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+// Single beep
+function playBeep(frequency = 880, duration = 0.3, volume = 1) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx        = getAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode   = ctx.createGain();
 
-    // Beep 3 times
-    [0, 0.4, 0.8].forEach(startTime => {
-      const oscillator = ctx.createOscillator();
-      const gainNode   = ctx.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
+    oscillator.type            = "sine";
+    oscillator.frequency.value = frequency;
+    gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
-      oscillator.type      = "sine";
-      oscillator.frequency.value = 880;
-      gainNode.gain.value  = 1;
-
-      oscillator.start(ctx.currentTime + startTime);
-      oscillator.stop(ctx.currentTime + startTime + 0.3);
-    });
+    oscillator.start(ctx.currentTime);
+    oscillator.stop(ctx.currentTime + duration);
   } catch (err) {
-    console.warn("Audio failed:", err);
+    console.warn("Beep failed:", err);
   }
 }
 
-// ── SPEAK WHEN TAB BECOMES ACTIVE AGAIN ──────────
-// Mobile blocks speech in background — so we queue it
-// and fire when user comes back to the tab
-let pendingSpeak = [];
+// Alarm — keeps beeping every second until stopped
+function startAlarm() {
+  stopAlarm(); // clear any existing alarm
 
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && pendingSpeak.length > 0) {
-    const task = pendingSpeak.shift();
-    setTimeout(() => {
-      if (typeof speak === "function") {
-        speak(`Reminder! Time to ${task}!`);
-        setTimeout(() => speak(`Hey! Time to ${task}!`), 3000);
-      }
-    }, 500);
+  // Beep immediately
+  playBeep(880, 0.3, 1);
+
+  // Keep beeping every 1.5 seconds
+  alarmInterval = setInterval(() => {
+    playBeep(880, 0.3, 1);
+    setTimeout(() => playBeep(660, 0.2, 0.8), 400);
+  }, 1500);
+
+  // Auto stop after 30 seconds
+  setTimeout(stopAlarm, 30000);
+}
+
+function stopAlarm() {
+  if (alarmInterval) {
+    clearInterval(alarmInterval);
+    alarmInterval = null;
   }
-});
+}
 
-// ── MOBILE SAFE REMINDER ──────────────────────────
-// Call this instead of directly calling speak() for reminders
+// ══════════════════════════════════════════════════
+//  MOBILE SAFE REMINDER FIRE
+// ══════════════════════════════════════════════════
+
 function fireMobileReminder(task) {
-  // 1. Play beep sound (works even on mobile background)
-  playAlertSound();
+  // 1. Start beeping alarm (works on mobile)
+  startAlarm();
 
   // 2. Show notification
   showNotification("⏰ Kara Reminder", `Time to ${task}!`);
 
-  // 3. If tab is visible — speak now
+  // 3. Speak if tab visible
   if (document.visibilityState === "visible") {
     if (typeof speak === "function") {
       speak(`Reminder! Time to ${task}!`);
       setTimeout(() => speak(`Hey! Time to ${task}!`), 3000);
     }
-  } else {
-    // Tab is in background — queue speech for when they return
-    pendingSpeak.push(task);
   }
+
+  // 4. When user comes back to tab — speak
+  const onVisible = () => {
+    if (document.visibilityState === "visible") {
+      if (typeof speak === "function") {
+        setTimeout(() => speak(`You have a reminder! ${task}!`), 300);
+      }
+      document.removeEventListener("visibilitychange", onVisible);
+    }
+  };
+  document.addEventListener("visibilitychange", onVisible);
 }
 
 // ── INIT ──────────────────────────────────────────
 async function initNotifications() {
   await registerServiceWorker();
-  await requestNotificationPermission();
+  const granted = await requestNotificationPermission();
+  if (granted) {
+    addLog("SYSTEM", "Notifications enabled ✅");
+  }
 }
