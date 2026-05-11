@@ -1,4 +1,4 @@
-const CACHE_NAME = "kara-v1";
+const CACHE_NAME = "kara-v8";
 
 const FILES = [
   "/kara/",
