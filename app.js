@@ -5,13 +5,16 @@ const statusEl = document.getElementById("status");
 const orb      = document.getElementById("orb");
 
 // ⚠️ CHANGE THIS to your Worker URL
-const MEMORY_API = "https://kara-memory-api.aklt770586.workers.dev";
+const MEMORY_API = "https://kara-memory-api.aklt770586.workers.dev/";
 const AI_API     = "https://budy-ai.klt770586.workers.dev";
 const MODEL      = "nvidia/nemotron-3-super-120b-a12b:free";
 
 const history = [];
 
-// ── CLOCK ──────────────────────────────────────────
+// ══════════════════════════════════════════════════
+//  CLOCK
+// ══════════════════════════════════════════════════
+
 function updateTime() {
   const el = document.getElementById("time");
   if (el) el.textContent = new Date().toLocaleTimeString();
@@ -19,14 +22,20 @@ function updateTime() {
 setInterval(updateTime, 1000);
 updateTime();
 
-// ── STATE ─────────────────────────────────────────
+// ══════════════════════════════════════════════════
+//  STATE (orb color)
+// ══════════════════════════════════════════════════
+
 function setState(text, color) {
   statusEl.textContent = text;
   orb.style.borderColor = color;
   orb.style.boxShadow   = `0 0 40px ${color}, inset 0 0 40px ${color}33`;
 }
 
-// ── LOG ───────────────────────────────────────────
+// ══════════════════════════════════════════════════
+//  LOG
+// ══════════════════════════════════════════════════
+
 function addLog(sender, text) {
   const div = document.createElement("div");
   div.innerHTML = `<strong>${sender}:</strong> ${text}`;
@@ -67,7 +76,7 @@ async function loadHistory() {
     return data;
   } catch (err) {
     addLog("SYSTEM", "Could not load memory. Running offline.");
-    return { messages: [], tasks: [], reminders: [] };
+    return { messages: [], tasks: [], reminders: [], profile: {} };
   }
 }
 
@@ -79,6 +88,7 @@ async function clearMemory() {
   }
   history.length = 0;
   log.innerHTML  = "";
+  window.karaProfile = null;
   addLog("SYSTEM", "Memory cleared.");
   if (typeof speak === "function") speak("Memory cleared.");
 }
@@ -95,14 +105,23 @@ async function bootSequence() {
   setTimeout(() => addLog("SYSTEM", "Starting background agent..."),   2200);
 
   setTimeout(async () => {
+
+    // Start notifications + service worker
     if (typeof initNotifications === "function") {
       await initNotifications();
     }
+
+    // Load user profile (Phase 9)
+    if (typeof initProfile === "function") {
+      await initProfile();
+    }
+
+    // Load chat history + reminders
     const data = await loadHistory();
     await restoreReminders(data.reminders || []);
-    addLog("SYSTEM", "Kara ready.");
+
     setState("READY", "#00e5ff");
-    if (typeof speak === "function") speak("Kara online.");
+
   }, 2400);
 }
 
@@ -111,30 +130,43 @@ async function bootSequence() {
 // ══════════════════════════════════════════════════
 
 async function addTask(task) {
-  await fetch(`${MEMORY_API}/task/add`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ task }),
-  });
+  try {
+    await fetch(`${MEMORY_API}/task/add`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task }),
+    });
+  } catch (err) {
+    console.warn("Add task failed:", err);
+  }
   addLog("KARA", `Task added ✅ — ${task}`);
   if (typeof speak === "function") speak(`Task added: ${task}`);
 }
 
 async function showTasks() {
-  const res   = await fetch(`${MEMORY_API}/history`);
-  const data  = await res.json();
-  const tasks = data.tasks || [];
+  try {
+    const res   = await fetch(`${MEMORY_API}/history`);
+    const data  = await res.json();
+    const tasks = data.tasks || [];
 
-  if (tasks.length === 0) {
-    addLog("KARA", "No tasks found.");
-    return;
+    if (tasks.length === 0) {
+      addLog("KARA", "No tasks found.");
+      if (typeof speak === "function") speak("You have no tasks.");
+      return;
+    }
+    addLog("KARA", `You have ${tasks.length} task(s):`);
+    tasks.forEach((t, i) => addLog("TASK", `${i + 1}. ${t.task}`));
+  } catch (err) {
+    addLog("KARA", "Could not load tasks.");
   }
-  addLog("KARA", `You have ${tasks.length} task(s):`);
-  tasks.forEach((t, i) => addLog("TASK", `${i + 1}. ${t.task}`));
 }
 
 async function clearTasks() {
-  await fetch(`${MEMORY_API}/task/clear`, { method: "DELETE" });
+  try {
+    await fetch(`${MEMORY_API}/task/clear`, { method: "DELETE" });
+  } catch (err) {
+    console.warn("Clear tasks failed:", err);
+  }
   addLog("KARA", "All tasks cleared.");
   if (typeof speak === "function") speak("All tasks cleared.");
 }
@@ -146,11 +178,15 @@ async function clearTasks() {
 async function setReminder(task, delay) {
   const fireAt = new Date(Date.now() + delay).toISOString();
 
-  await fetch(`${MEMORY_API}/reminder/add`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ task, fireAt }),
-  });
+  try {
+    await fetch(`${MEMORY_API}/reminder/add`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task, fireAt }),
+    });
+  } catch (err) {
+    console.warn("Reminder save failed:", err);
+  }
 
   scheduleReminder(task, delay);
   addLog("KARA", `Reminder set ⏰ — "${task}"`);
@@ -158,6 +194,7 @@ async function setReminder(task, delay) {
 }
 
 function scheduleReminder(task, delay) {
+  // Send to service worker for background
   if (typeof scheduleBackgroundReminder === "function") {
     scheduleBackgroundReminder(task, delay);
   }
@@ -165,7 +202,7 @@ function scheduleReminder(task, delay) {
   setTimeout(() => {
     setState("REMINDER", "#ff4d6d");
 
-    // Show stop button in chat
+    // Show in chat with stop button
     const div = document.createElement("div");
     div.innerHTML = `
       <strong>⏰ REMINDER:</strong> Time to ${task}!
@@ -181,6 +218,12 @@ function scheduleReminder(task, delay) {
     // Fire alarm — beeps + notification + voice
     if (typeof fireMobileReminder === "function") {
       fireMobileReminder(task);
+    } else {
+      // Fallback if notifications.js not loaded
+      if (typeof speak === "function") {
+        speak(`Reminder! Time to ${task}!`);
+        setTimeout(() => speak(`Hey! Time to ${task}!`), 3000);
+      }
     }
 
     setTimeout(() => setState("READY", "#00e5ff"), 5000);
@@ -213,8 +256,8 @@ Analyze the user message and return ONLY a JSON object — no explanation, no ex
 Possible intents:
 - get_time
 - get_date
-- open_site   → needs: { site: "youtube" }
-- add_task    → needs: { task: "buy milk" }
+- open_site    → needs: { site: "youtube" }
+- add_task     → needs: { task: "buy milk" }
 - show_tasks
 - clear_tasks
 - set_reminder → needs: { task: "drink water", delay_ms: 300000 }
@@ -324,7 +367,8 @@ async function executeIntent(intent) {
         📋 "i need to buy milk" / "add task call mom"<br>
         📋 "show my tasks" / "clear tasks"<br>
         ⏰ "remind me to drink water in 5 minutes"<br>
-        🧹 "clear everything" / "shutdown"
+        🧹 "clear everything" / "shutdown"<br>
+        👤 "change my tone" / "update my name"
       `);
       return true;
     }
@@ -350,7 +394,7 @@ async function sendMessage() {
 
   // Step 1 — detect intent
   const intent  = await detectIntent(message);
-  console.log("Intent detected:", intent);
+  console.log("Intent:", intent);
 
   // Step 2 — execute if command
   const handled = await executeIntent(intent);
@@ -359,7 +403,7 @@ async function sendMessage() {
     return;
   }
 
-  // Step 3 — send to AI for normal chat
+  // Step 3 — normal AI chat
   history.push({ role: "user", content: message });
   await saveMessage("user", message);
 
@@ -372,7 +416,9 @@ async function sendMessage() {
         messages: [
           {
             role: "system",
-            content: "You are Kara, a Jarvis-like AI assistant. Be short, useful, and direct."
+            content: typeof buildSystemPrompt === "function"
+              ? buildSystemPrompt(window.karaProfile || {})
+              : "You are Kara, a Jarvis-like AI assistant. Be short, useful, and direct."
           },
           ...history
         ]
@@ -396,7 +442,10 @@ async function sendMessage() {
   }
 }
 
-// ── EVENTS ────────────────────────────────────────
+// ══════════════════════════════════════════════════
+//  EVENTS
+// ══════════════════════════════════════════════════
+
 sendBtn.addEventListener("click", sendMessage);
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
