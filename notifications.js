@@ -8,7 +8,7 @@ async function registerServiceWorker() {
 
   try {
     // ✅ Use relative path — works on GitHub Pages
-    swRegistration = await navigator.serviceWorker.register("./sw.js");
+   swRegistration = await navigator.serviceWorker.register("/kara/sw.js");
     console.log("Service Worker registered ✅", swRegistration.scope);
   } catch (err) {
     console.warn("Service Worker failed:", err);
