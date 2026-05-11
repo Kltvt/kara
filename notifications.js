@@ -1,10 +1,5 @@
-// ══════════════════════════════════════════════════
-//  NOTIFICATION SYSTEM
-// ══════════════════════════════════════════════════
-
 let swRegistration = null;
 
-// ── REGISTER SERVICE WORKER ───────────────────────
 async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) {
     console.warn("Service Worker not supported");
@@ -12,24 +7,25 @@ async function registerServiceWorker() {
   }
 
   try {
-    swRegistration = await navigator.serviceWorker.register("/sw.js");
-    console.log("Service Worker registered ✅");
+    // ✅ Use relative path — works on GitHub Pages
+    swRegistration = await navigator.serviceWorker.register("./sw.js");
+    console.log("Service Worker registered ✅", swRegistration.scope);
   } catch (err) {
     console.warn("Service Worker failed:", err);
+    addLog("SYSTEM", "Background agent unavailable.");
   }
 }
 
-// ── ASK FOR NOTIFICATION PERMISSION ──────────────
 async function requestNotificationPermission() {
   if (!("Notification" in window)) {
-    addLog("SYSTEM", "Notifications not supported in this browser.");
+    addLog("SYSTEM", "Notifications not supported.");
     return false;
   }
 
   if (Notification.permission === "granted") return true;
 
   if (Notification.permission === "denied") {
-    addLog("SYSTEM", "Notifications blocked. Enable in browser settings.");
+    addLog("SYSTEM", "Notifications blocked. Please enable in browser settings.");
     return false;
   }
 
@@ -45,31 +41,24 @@ async function requestNotificationPermission() {
   }
 }
 
-// ── SEND REMINDER TO SERVICE WORKER ──────────────
-// This fires even when tab is minimized
 function scheduleBackgroundReminder(task, delay) {
   if (swRegistration?.active) {
-    swRegistration.active.postMessage({
-      type: "REMINDER",
-      task,
-      delay,
-    });
-    console.log(`Background reminder set: ${task} in ${delay}ms`);
+    swRegistration.active.postMessage({ type: "REMINDER", task, delay });
+    console.log(`Background reminder scheduled: "${task}" in ${delay}ms`);
+  } else {
+    console.warn("Service Worker not ready yet.");
   }
 }
 
-// ── SHOW INSTANT NOTIFICATION ─────────────────────
 function showNotification(title, body) {
   if (Notification.permission === "granted") {
     new Notification(title, {
       body,
-      icon: "/icon.png",
       requireInteraction: true,
     });
   }
 }
 
-// ── INIT ──────────────────────────────────────────
 async function initNotifications() {
   await registerServiceWorker();
   await requestNotificationPermission();
