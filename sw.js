@@ -1,4 +1,4 @@
-const CACHE_NAME = "kara-v9";
+const CACHE_NAME = "kara-v10";
 
 const FILES = [
   "/kara/",
@@ -11,7 +11,6 @@ const FILES = [
   "/kara/sw.js"
 ];
 
-// ── INSTALL ───────────────────────────────────────
 self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
@@ -23,7 +22,6 @@ self.addEventListener("install", (e) => {
   self.skipWaiting();
 });
 
-// ── ACTIVATE ──────────────────────────────────────
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -37,26 +35,28 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// ── FETCH ─────────────────────────────────────────
-// Only cache local files — never API calls
+// ✅ ONLY cache github.io files
+// NEVER touch API requests — let them go directly
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
 
-  // Skip all API/external requests — let them go direct
-  if (!url.origin.includes("github.io")) {
-    return;
+  // Skip ALL external requests — APIs, workers, etc
+  if (url.hostname !== "kltvt.github.io") {
+    return; // ✅ do nothing — browser handles it directly
   }
 
+  // Only cache local github pages files
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request).then(cached => {
+      return cached || fetch(e.request);
+    })
   );
 });
 
-// ── NOTIFICATIONS ─────────────────────────────────
+// Notifications
 self.addEventListener("message", (e) => {
   if (e.data?.type === "REMINDER") {
     const { task, delay } = e.data;
-
     setTimeout(() => {
       self.registration.showNotification("⏰ Kara Reminder", {
         body: `Time to ${task}!`,
@@ -67,7 +67,6 @@ self.addEventListener("message", (e) => {
   }
 });
 
-// Click notification → focus Kara tab
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   e.waitUntil(
