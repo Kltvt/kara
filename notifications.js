@@ -63,3 +63,4 @@ async function initNotifications() {
   await registerServiceWorker();
   await requestNotificationPermission();
 }
+
