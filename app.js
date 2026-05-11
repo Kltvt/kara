@@ -154,23 +154,28 @@ async function setReminder(task, delay) {
     body: JSON.stringify({ task, fireAt }),
   });
 
-  scheduleReminder(task, delay);
-  addLog("KARA", `Reminder set ⏰ — "${task}"`);
-  if (typeof speak === "function") speak(`Reminder set for ${task}`);
-}
-
-function scheduleReminder(task, delay) {
-  // Send to service worker for background notification
+ function scheduleReminder(task, delay) {
   if (typeof scheduleBackgroundReminder === "function") {
     scheduleBackgroundReminder(task, delay);
   }
 
-  // In-app timer
   setTimeout(() => {
     setState("REMINDER", "#ff4d6d");
-    addLog("⏰ REMINDER", `Time to ${task}!`);
 
-    // ✅ Mobile safe — handles voice + sound + notification
+    // Show stop button in chat
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <strong>⏰ REMINDER:</strong> Time to ${task}!
+      <button onclick="stopAlarm(); this.parentElement.remove();"
+        style="margin-left:10px; padding:4px 12px; background:#ff4d6d;
+               border:none; border-radius:6px; color:white; cursor:pointer;">
+        Stop Alarm
+      </button>
+    `;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+
+    // Fire alarm — beeps + notification + voice
     if (typeof fireMobileReminder === "function") {
       fireMobileReminder(task);
     }
@@ -178,6 +183,7 @@ function scheduleReminder(task, delay) {
     setTimeout(() => setState("READY", "#00e5ff"), 5000);
   }, delay);
 }
+
 async function restoreReminders(reminders) {
   const now = Date.now();
   reminders.forEach(r => {
