@@ -1,13 +1,13 @@
 const CACHE_NAME = "kara-v1";
 
-// Files to cache so Kara works offline
 const FILES = [
-  "/",
-  "/index.html",
-  "/style.css",
-  "/app.js",
-  "/voice.js",
-  "/sw.js"
+  "./",
+  "./index.html",
+  "./style.css",
+  "./app.js",
+  "./voice.js",
+  "./notifications.js",
+  "./sw.js"
 ];
 
 // ── INSTALL ───────────────────────────────────────
@@ -32,7 +32,7 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// ── FETCH (serve from cache) ──────────────────────
+// ── FETCH ─────────────────────────────────────────
 self.addEventListener("fetch", (e) => {
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
@@ -47,8 +47,6 @@ self.addEventListener("message", (e) => {
     setTimeout(() => {
       self.registration.showNotification("⏰ Kara Reminder", {
         body: `Time to ${task}!`,
-        icon: "/icon.png",
-        badge: "/icon.png",
         vibrate: [200, 100, 200],
         requireInteraction: true,
       });
@@ -56,17 +54,15 @@ self.addEventListener("message", (e) => {
   }
 });
 
-// Click on notification → focus the Kara tab
+// Click notification → open Kara tab
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   e.waitUntil(
     clients.matchAll({ type: "window" }).then(list => {
       for (const client of list) {
-        if (client.url.includes("kara") && "focus" in client) {
-          return client.focus();
-        }
+        if ("focus" in client) return client.focus();
       }
-      if (clients.openWindow) return clients.openWindow("/");
+      if (clients.openWindow) return clients.openWindow("./");
     })
   );
 });
