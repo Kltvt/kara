@@ -89,11 +89,17 @@ async function clearMemory() {
 
 async function bootSequence() {
   addLog("SYSTEM", "Initializing Kara...");
-  setTimeout(() => addLog("SYSTEM", "Voice systems loading..."),      800);
-  setTimeout(() => addLog("SYSTEM", "Neural core active..."),        1600);
+  setTimeout(() => addLog("SYSTEM", "Voice systems loading..."),        800);
+  setTimeout(() => addLog("SYSTEM", "Neural core active..."),          1600);
   setTimeout(() => addLog("SYSTEM", "Connecting to memory server..."), 2000);
+  setTimeout(() => addLog("SYSTEM", "Starting background agent..."),   2200);
 
   setTimeout(async () => {
+    // Start notification system
+    if (typeof initNotifications === "function") {
+      await initNotifications();
+    }
+
     const data = await loadHistory();
     await restoreReminders(data.reminders || []);
     addLog("SYSTEM", "Kara ready.");
@@ -154,9 +160,20 @@ async function setReminder(task, delay) {
 }
 
 function scheduleReminder(task, delay) {
+  // Background notification (works even when tab minimized)
+  if (typeof scheduleBackgroundReminder === "function") {
+    scheduleBackgroundReminder(task, delay);
+  }
+
+  // In-app reminder (when tab is active)
   setTimeout(() => {
     setState("REMINDER", "#ff4d6d");
     addLog("⏰ REMINDER", `Time to ${task}!`);
+
+    // Show notification too
+    if (typeof showNotification === "function") {
+      showNotification("⏰ Kara Reminder", `Time to ${task}!`);
+    }
 
     if (typeof speak === "function") {
       speak(`Reminder! Time to ${task}!`);
