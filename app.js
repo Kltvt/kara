@@ -5,7 +5,7 @@ const statusEl = document.getElementById("status");
 const orb      = document.getElementById("orb");
 
 // ⚠️ CHANGE THIS to your Worker URL
-const MEMORY_API = "https://kara-memory-api.aklt770586.workers.dev";
+const MEMORY_API = "https://kara-memory-api.klt770586.workers.dev";
 const AI_API     = "https://budy-ai.klt770586.workers.dev";
 const MODEL      = "nvidia/nemotron-3-super-120b-a12b:free";
 
@@ -78,7 +78,7 @@ async function clearMemory() {
     console.warn("Clear failed:", err);
   }
   history.length = 0;
-  log.innerHTML = "";
+  log.innerHTML  = "";
   addLog("SYSTEM", "Memory cleared.");
   if (typeof speak === "function") speak("Memory cleared.");
 }
@@ -95,11 +95,9 @@ async function bootSequence() {
   setTimeout(() => addLog("SYSTEM", "Starting background agent..."),   2200);
 
   setTimeout(async () => {
-    // Start notification system
     if (typeof initNotifications === "function") {
       await initNotifications();
     }
-
     const data = await loadHistory();
     await restoreReminders(data.reminders || []);
     addLog("SYSTEM", "Kara ready.");
@@ -154,7 +152,12 @@ async function setReminder(task, delay) {
     body: JSON.stringify({ task, fireAt }),
   });
 
- function scheduleReminder(task, delay) {
+  scheduleReminder(task, delay);
+  addLog("KARA", `Reminder set ⏰ — "${task}"`);
+  if (typeof speak === "function") speak(`Reminder set for ${task}`);
+}
+
+function scheduleReminder(task, delay) {
   if (typeof scheduleBackgroundReminder === "function") {
     scheduleBackgroundReminder(task, delay);
   }
@@ -199,8 +202,7 @@ async function restoreReminders(reminders) {
 }
 
 // ══════════════════════════════════════════════════
-//  INTENT ENGINE (Phase 7 — the brain)
-//  Sends message to AI, gets back JSON intent
+//  INTENT ENGINE (Phase 7)
 // ══════════════════════════════════════════════════
 
 async function detectIntent(message) {
@@ -219,7 +221,7 @@ Possible intents:
 - clear_memory
 - shutdown
 - show_help
-- chat         → (not a command, just normal conversation)
+- chat
 
 User message: "${message}"
 
@@ -239,10 +241,8 @@ or
       })
     });
 
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content || "{}";
-
-    // Strip markdown code fences if AI wraps in ```json
+    const data  = await res.json();
+    const text  = data?.choices?.[0]?.message?.content || "{}";
     const clean = text.replace(/```json|```/g, "").trim();
     return JSON.parse(clean);
 
@@ -256,7 +256,7 @@ or
 //  EXECUTE INTENT
 // ══════════════════════════════════════════════════
 
-async function executeIntent(intent, message) {
+async function executeIntent(intent) {
   switch (intent.intent) {
 
     case "get_time": {
@@ -349,17 +349,17 @@ async function sendMessage() {
   setState("THINKING", "#ffd166");
 
   // Step 1 — detect intent
-  const intent = await detectIntent(message);
+  const intent  = await detectIntent(message);
   console.log("Intent detected:", intent);
 
-  // Step 2 — execute if it's a command
-  const handled = await executeIntent(intent, message);
+  // Step 2 — execute if command
+  const handled = await executeIntent(intent);
   if (handled) {
     setState("READY", "#00e5ff");
     return;
   }
 
-  // Step 3 — not a command, send to AI for chat
+  // Step 3 — send to AI for normal chat
   history.push({ role: "user", content: message });
   await saveMessage("user", message);
 
