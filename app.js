@@ -23,7 +23,7 @@ setInterval(updateTime, 1000);
 updateTime();
 
 // ══════════════════════════════════════════════════
-//  STATE (orb color)
+//  STATE
 // ══════════════════════════════════════════════════
 
 function setState(text, color) {
@@ -86,8 +86,8 @@ async function clearMemory() {
   } catch (err) {
     console.warn("Clear failed:", err);
   }
-  history.length = 0;
-  log.innerHTML  = "";
+  history.length     = 0;
+  log.innerHTML      = "";
   window.karaProfile = null;
   addLog("SYSTEM", "Memory cleared.");
   if (typeof speak === "function") speak("Memory cleared.");
@@ -105,23 +105,11 @@ async function bootSequence() {
   setTimeout(() => addLog("SYSTEM", "Starting background agent..."),   2200);
 
   setTimeout(async () => {
-
-    // Start notifications + service worker
-    if (typeof initNotifications === "function") {
-      await initNotifications();
-    }
-
-    // Load user profile (Phase 9)
-    if (typeof initProfile === "function") {
-      await initProfile();
-    }
-
-    // Load chat history + reminders
+    if (typeof initNotifications === "function") await initNotifications();
+    if (typeof initProfile === "function") await initProfile();
     const data = await loadHistory();
     await restoreReminders(data.reminders || []);
-
     setState("READY", "#00e5ff");
-
   }, 2400);
 }
 
@@ -148,7 +136,6 @@ async function showTasks() {
     const res   = await fetch(`${MEMORY_API}/history`);
     const data  = await res.json();
     const tasks = data.tasks || [];
-
     if (tasks.length === 0) {
       addLog("KARA", "No tasks found.");
       if (typeof speak === "function") speak("You have no tasks.");
@@ -177,7 +164,6 @@ async function clearTasks() {
 
 async function setReminder(task, delay) {
   const fireAt = new Date(Date.now() + delay).toISOString();
-
   try {
     await fetch(`${MEMORY_API}/reminder/add`, {
       method: "POST",
@@ -187,14 +173,12 @@ async function setReminder(task, delay) {
   } catch (err) {
     console.warn("Reminder save failed:", err);
   }
-
   scheduleReminder(task, delay);
   addLog("KARA", `Reminder set ⏰ — "${task}"`);
   if (typeof speak === "function") speak(`Reminder set for ${task}`);
 }
 
 function scheduleReminder(task, delay) {
-  // Send to service worker for background
   if (typeof scheduleBackgroundReminder === "function") {
     scheduleBackgroundReminder(task, delay);
   }
@@ -202,7 +186,6 @@ function scheduleReminder(task, delay) {
   setTimeout(() => {
     setState("REMINDER", "#ff4d6d");
 
-    // Show in chat with stop button
     const div = document.createElement("div");
     div.innerHTML = `
       <strong>⏰ REMINDER:</strong> Time to ${task}!
@@ -215,11 +198,9 @@ function scheduleReminder(task, delay) {
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
 
-    // Fire alarm — beeps + notification + voice
     if (typeof fireMobileReminder === "function") {
       fireMobileReminder(task);
     } else {
-      // Fallback if notifications.js not loaded
       if (typeof speak === "function") {
         speak(`Reminder! Time to ${task}!`);
         setTimeout(() => speak(`Hey! Time to ${task}!`), 3000);
@@ -245,34 +226,131 @@ async function restoreReminders(reminders) {
 }
 
 // ══════════════════════════════════════════════════
-//  INTENT ENGINE (Phase 7)
+//  LOCAL COMMAND CHECK (Phase 3 — instant, no AI)
+//  Runs FIRST before anything else
+// ══════════════════════════════════════════════════
+
+async function checkLocalCommand(message) {
+  const cmd = message.toLowerCase().trim();
+
+  // TIME
+  if (cmd === "time" || cmd === "what time is it" || cmd === "what's the time") {
+    const now = new Date().toLocaleTimeString();
+    addLog("KARA", `Current time is ${now}`);
+    if (typeof speak === "function") speak(`The time is ${now}`);
+    return true;
+  }
+
+  // DATE
+  if (cmd === "date" || cmd === "what day is it" || cmd === "what's today" || cmd === "what is today") {
+    const today = new Date().toDateString();
+    addLog("KARA", `Today is ${today}`);
+    if (typeof speak === "function") speak(`Today is ${today}`);
+    return true;
+  }
+
+  // CLEAR
+  if (cmd === "clear" || cmd === "clear memory" || cmd === "wipe everything" || cmd === "reset") {
+    await clearMemory();
+    return true;
+  }
+
+  // SHUTDOWN
+  if (cmd === "shutdown" || cmd === "turn off" || cmd === "goodbye" || cmd === "bye") {
+    addLog("SYSTEM", "Kara shutting down...");
+    setState("OFFLINE", "#ff4d6d");
+    if (typeof speak === "function") speak("Shutting down. Goodbye.");
+    return true;
+  }
+
+  // OPEN SITE
+  if (cmd.startsWith("open ") || cmd.startsWith("take me to ") || cmd.startsWith("go to ")) {
+    let site = message
+      .replace(/open /i, "")
+      .replace(/take me to /i, "")
+      .replace(/go to /i, "")
+      .trim()
+      .toLowerCase()
+      .replace(/\.com$/, "");
+    window.open(`https://${site}.com`, "_blank");
+    addLog("KARA", `Opening ${site}.com ✅`);
+    if (typeof speak === "function") speak(`Opening ${site}`);
+    return true;
+  }
+
+  // ADD TASK
+  if (cmd.startsWith("add task ") || cmd.startsWith("add a task ")) {
+    const task = message.replace(/add a? task /i, "").trim();
+    await addTask(task);
+    return true;
+  }
+
+  // SHOW TASKS
+  if (cmd === "show tasks" || cmd === "tasks" || cmd === "my tasks" || cmd === "show my tasks") {
+    await showTasks();
+    return true;
+  }
+
+  // CLEAR TASKS
+  if (cmd === "clear tasks" || cmd === "delete tasks" || cmd === "remove tasks") {
+    await clearTasks();
+    return true;
+  }
+
+  // REMIND ME — exact pattern
+  const exactReminder = cmd.match(
+    /^remind me (.+) in (\d+)\s*(second|seconds|minute|minutes|hour|hours)$/
+  );
+  if (exactReminder) {
+    const task  = exactReminder[1].trim();
+    const value = parseInt(exactReminder[2]);
+    const unit  = exactReminder[3];
+    let delay   = 0;
+    if (unit.startsWith("second")) delay = value * 1000;
+    if (unit.startsWith("minute")) delay = value * 60 * 1000;
+    if (unit.startsWith("hour"))   delay = value * 60 * 60 * 1000;
+    await setReminder(task, delay);
+    return true;
+  }
+
+  // HELP
+  if (cmd === "help" || cmd === "commands" || cmd === "what can you do") {
+    addLog("KARA", `
+      Say anything naturally!<br>
+      ⏰ "what time is it" / "what day is today"<br>
+      🌐 "open youtube" / "take me to github"<br>
+      📋 "add task buy milk" / "show my tasks"<br>
+      ⏰ "remind me drink water in 5 minutes"<br>
+      🧹 "clear" / "shutdown"
+    `);
+    return true;
+  }
+
+  // Not a local command
+  return false;
+}
+
+// ══════════════════════════════════════════════════
+//  AI INTENT ENGINE (Phase 7)
+//  Only runs if local command check fails
 // ══════════════════════════════════════════════════
 
 async function detectIntent(message) {
   const prompt = `
-You are an intent detection engine for an AI assistant called Kara.
-Analyze the user message and return ONLY a JSON object — no explanation, no extra text.
+You are an intent detection engine. Reply ONLY with a JSON object, nothing else.
+No markdown, no explanation, no code fences.
 
-Possible intents:
-- get_time
-- get_date
-- open_site    → needs: { site: "youtube" }
-- add_task     → needs: { task: "buy milk" }
-- show_tasks
-- clear_tasks
-- set_reminder → needs: { task: "drink water", delay_ms: 300000 }
-- clear_memory
-- shutdown
-- show_help
-- chat
+Intents:
+- open_site    → { "intent": "open_site", "site": "youtube" }
+- add_task     → { "intent": "add_task", "task": "buy milk" }
+- show_tasks   → { "intent": "show_tasks" }
+- clear_tasks  → { "intent": "clear_tasks" }
+- set_reminder → { "intent": "set_reminder", "task": "drink water", "delay_ms": 300000 }
+- chat         → { "intent": "chat" }
 
-User message: "${message}"
+Message: "${message}"
 
-Reply ONLY with JSON like:
-{ "intent": "set_reminder", "task": "drink water", "delay_ms": 300000 }
-or
-{ "intent": "chat" }
-`;
+JSON only:`;
 
   try {
     const res = await fetch(AI_API, {
@@ -287,40 +365,28 @@ or
     const data  = await res.json();
     const text  = data?.choices?.[0]?.message?.content || "{}";
     const clean = text.replace(/```json|```/g, "").trim();
-    return JSON.parse(clean);
+    const parsed = JSON.parse(clean);
+    console.log("AI Intent:", parsed);
+    return parsed;
 
   } catch (err) {
-    console.warn("Intent detection failed:", err);
+    console.warn("Intent detection failed — defaulting to chat:", err);
     return { intent: "chat" };
   }
 }
 
 // ══════════════════════════════════════════════════
-//  EXECUTE INTENT
+//  EXECUTE AI INTENT
 // ══════════════════════════════════════════════════
 
 async function executeIntent(intent) {
   switch (intent.intent) {
 
-    case "get_time": {
-      const now = new Date().toLocaleTimeString();
-      addLog("KARA", `Current time is ${now}`);
-      if (typeof speak === "function") speak(`The time is ${now}`);
-      return true;
-    }
-
-    case "get_date": {
-      const today = new Date().toDateString();
-      addLog("KARA", `Today is ${today}`);
-      if (typeof speak === "function") speak(`Today is ${today}`);
-      return true;
-    }
-
     case "open_site": {
       let site = (intent.site || "").toLowerCase().replace(/\.com$/, "");
       if (!site) return false;
       window.open(`https://${site}.com`, "_blank");
-      addLog("KARA", `Opening ${site}.com`);
+      addLog("KARA", `Opening ${site}.com ✅`);
       if (typeof speak === "function") speak(`Opening ${site}`);
       return true;
     }
@@ -347,32 +413,6 @@ async function executeIntent(intent) {
       return true;
     }
 
-    case "clear_memory": {
-      await clearMemory();
-      return true;
-    }
-
-    case "shutdown": {
-      addLog("SYSTEM", "Kara shutting down...");
-      setState("OFFLINE", "#ff4d6d");
-      if (typeof speak === "function") speak("Shutting down. Goodbye.");
-      return true;
-    }
-
-    case "show_help": {
-      addLog("KARA", `
-        Say anything naturally!<br>
-        ⏰ "what time is it" / "what day is today"<br>
-        🌐 "take me to youtube" / "open github"<br>
-        📋 "i need to buy milk" / "add task call mom"<br>
-        📋 "show my tasks" / "clear tasks"<br>
-        ⏰ "remind me to drink water in 5 minutes"<br>
-        🧹 "clear everything" / "shutdown"<br>
-        👤 "change my tone" / "update my name"
-      `);
-      return true;
-    }
-
     case "chat":
     default:
       return false;
@@ -389,21 +429,24 @@ async function sendMessage() {
 
   input.value = "";
   addLog("YOU", message);
-
   setState("THINKING", "#ffd166");
 
-  // Step 1 — detect intent
-  const intent  = await detectIntent(message);
-  console.log("Intent:", intent);
+  // ✅ STEP 1 — Check local commands first (instant, no AI)
+  const localHandled = await checkLocalCommand(message);
+  if (localHandled) {
+    setState("READY", "#00e5ff");
+    return;
+  }
 
-  // Step 2 — execute if command
+  // ✅ STEP 2 — Ask AI to detect intent for natural language
+  const intent  = await detectIntent(message);
   const handled = await executeIntent(intent);
   if (handled) {
     setState("READY", "#00e5ff");
     return;
   }
 
-  // Step 3 — normal AI chat
+  // ✅ STEP 3 — Normal AI chat
   history.push({ role: "user", content: message });
   await saveMessage("user", message);
 
@@ -433,7 +476,6 @@ async function sendMessage() {
 
     addLog("KARA", reply);
     if (typeof speak === "function") speak(reply);
-
     setState("READY", "#00e5ff");
 
   } catch (err) {
