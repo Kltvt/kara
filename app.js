@@ -336,9 +336,7 @@ async function checkLocalCommand(message) {
 // ══════════════════════════════════════════════════
 
 async function detectIntent(message) {
-  const prompt = `
-You are an intent detection engine. Reply ONLY with a JSON object, nothing else.
-No markdown, no explanation, no code fences.
+  const prompt = `You are an intent detection engine. Reply ONLY with a JSON object, nothing else. No markdown, no explanation, no code fences.
 
 Intents:
 - open_site    → { "intent": "open_site", "site": "youtube" }
@@ -358,16 +356,24 @@ JSON only:`;
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: "user", content: prompt }]
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
       })
     });
+
+    if (!res.ok) {
+      console.warn("Intent API error:", res.status);
+      return { intent: "chat" };
+    }
 
     const data  = await res.json();
     const text  = data?.choices?.[0]?.message?.content || "{}";
     const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
-    console.log("AI Intent:", parsed);
-    return parsed;
+    return JSON.parse(clean);
 
   } catch (err) {
     console.warn("Intent detection failed — defaulting to chat:", err);
@@ -460,18 +466,18 @@ async function sendMessage() {
     const res = await fetch(AI_API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          {
-            role: "system",
-            content: typeof buildSystemPrompt === "function"
-              ? buildSystemPrompt(window.karaProfile || {})
-              : "You are Kara, a Jarvis-like AI assistant. Be short, useful, and direct."
-          },
-          ...history
-        ]
-      })
+     body: JSON.stringify({
+  model: MODEL,
+  messages: [
+    {
+      role: "system",
+      content: typeof buildSystemPrompt === "function"
+        ? buildSystemPrompt(window.karaProfile || {})
+        : "You are Kara, a Jarvis-like AI assistant. Be short, useful, and direct."
+    },
+    ...history.slice(-20)
+  ].filter(m => m.role && m.content)
+})
     });
 
     const data  = await res.json();
